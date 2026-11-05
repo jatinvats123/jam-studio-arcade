@@ -1,6 +1,6 @@
 // node tools/publish.mjs <slug> <N>
 // Checks the game, rebuilds the arcade + short links, commits, pushes to GitHub Pages if an origin
-// remote exists and waits (max 90 s, under the 2-minute agent tool timeout) until the public URL answers, then prints the links.
+// remote exists and waits (max 90 s) until the public URL answers, then prints the links.
 // JAM_LOCAL=1 skips the push. Without a remote it prints localhost links.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,7 +57,7 @@ if (!m) { printLocal('origin is not a GitHub repo, so there is no Pages link.');
 const owner = m[1].toLowerCase(), repo = m[2];
 const base = repo.toLowerCase() === `${owner}.github.io` ? `https://${owner}.github.io` : `https://${owner}.github.io/${repo}`;
 const url = `${base}/games/${slug}/v${n}/`;
-// Wait for the Pages deploy: the new version's URL returns 200 once it is live (max 90 s, under the 2-minute agent tool timeout).
+// Wait for the Pages deploy: the new version's URL returns 200 once it is live (max 90 s: agent tool calls time out at 2 min).
 const t0 = Date.now();
 let ok = false, last = '';
 while (Date.now() - t0 < 90_000) {
