@@ -1,0 +1,18 @@
+[
+  {"seed": 42},
+  {"call": "start"},
+  {"mark": "a"},
+  {"wait": 1200},
+  {"expect": "state.scene==='playing' && state.score > marks.a.score", "label": "A1 score increases while playing"},
+  {"mark": "b"},
+  {"wait": 6000},
+  {"expect": "state.scene!=='playing' || state.speed > marks.b.speed", "label": "A2 speed increases as time increases"},
+  {"wait": 60000},
+  {"expect": "state.scene==='over'", "label": "A3 cucumber overlap ends the run"},
+  {"call": "reset"},
+  {"call": "start"},
+  {"expect": "state.scene==='playing' && state.score===0", "label": "A4 start() moves title to playing with score 0"},
+  {"call": "reset"},
+  {"expect": "state.scene==='title'", "label": "A5 reset() returns to title"},
+  {"expect": "Array.isArray(__jam.controls) && __jam.controls.length===2 && __jam.controls.includes('ArrowLeft') && __jam.controls.includes('ArrowRight')", "label": "A6 only ArrowLeft/ArrowRight controls"}
+]

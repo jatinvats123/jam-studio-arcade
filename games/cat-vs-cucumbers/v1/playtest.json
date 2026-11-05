@@ -1,15 +1,15 @@
 {
   "slug": "cat-vs-cucumbers",
   "version": 1,
-  "pass": false,
-  "when": "2026-11-05T09:56:09.567Z",
+  "pass": true,
+  "when": "2026-11-05T10:25:12.231Z",
   "seed": 42,
   "fps": 61,
   "controls": [
     "ArrowLeft",
     "ArrowRight"
   ],
-  "seconds": 31.6,
+  "seconds": 56.8,
   "screenshot": "screenshot.png",
   "checks": [
     {
@@ -78,9 +78,34 @@
       "detail": "scene=title"
     },
     {
-      "name": "scenario.json present",
-      "pass": false,
-      "detail": "missing: the playtester writes it from the Acceptance list"
+      "name": "A1 score increases while playing",
+      "pass": true,
+      "detail": "state.scene==='playing' && state.score > marks.a.score -> state {\"scene\":\"playing\",\"score\":1,\"best\":9,\"time\":1.25,\"frame\":76,\"catX\":480,\"cucumbers\":1,\"speed\":1.1}"
+    },
+    {
+      "name": "A2 speed increases as time increases",
+      "pass": true,
+      "detail": "state.scene!=='playing' || state.speed > marks.b.speed -> state {\"scene\":\"over\",\"score\":4,\"best\":9,\"time\":4.22,\"frame\":436,\"catX\":480,\"cucumbers\":5,\"speed\":1.34}"
+    },
+    {
+      "name": "A3 cucumber overlap ends the run",
+      "pass": true,
+      "detail": "state.scene==='over' -> state {\"scene\":\"over\",\"score\":4,\"best\":9,\"time\":4.22,\"frame\":4036,\"catX\":480,\"cucumbers\":5,\"speed\":1.34}"
+    },
+    {
+      "name": "A4 start() moves title to playing with score 0",
+      "pass": true,
+      "detail": "state.scene==='playing' && state.score===0 -> state {\"scene\":\"playing\",\"score\":0,\"best\":9,\"time\":0,\"frame\":4036,\"catX\":480,\"cucumbers\":0,\"speed\":1}"
+    },
+    {
+      "name": "A5 reset() returns to title",
+      "pass": true,
+      "detail": "state.scene==='title' -> state {\"scene\":\"title\",\"score\":0,\"best\":9,\"time\":0,\"frame\":4036,\"catX\":480,\"cucumbers\":0,\"speed\":1}"
+    },
+    {
+      "name": "A6 only ArrowLeft/ArrowRight controls",
+      "pass": true,
+      "detail": "Array.isArray(__jam.controls) && __jam.controls.length===2 && __jam.controls.includes('ArrowLeft') && __jam.controls.includes('ArrowRight') -> state {\"scene\":\"title\",\"score\":0,\"best\":9,\"time\":0,\"frame\":4036,\"catX\":480,\"cucumbers\":0,\"speed\":1}"
     }
   ]
 }

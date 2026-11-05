@@ -2,7 +2,7 @@
 title: Cat vs Cucumbers
 slug: cat-vs-cucumbers
 pitch: A jumpy cat dodges falling cucumbers that keep getting faster.
-credits: [billusanda5808]
+credits: [Jatiiin.vats]
 created: 2026-11-05
 ---
 ## Controls
