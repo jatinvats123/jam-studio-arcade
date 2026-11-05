@@ -1,0 +1,75 @@
+# Jam Room: one room per game.
+#
+# The designer runs this template itself, from the lobby (#jam-room), when the
+# humans approve a new game: it calls the agent op `create_room_from_yaml` with
+# this file's text and the four game inputs. Switch then
+#   - creates the room game-<slug> and its own Discord channel,
+#   - puts the three agents and the person who owns them in it, with short
+#     aliases (@designer, @builder, @tester),
+#   - posts the kickoff, which hands the build to the builder,
+#   - records the room in a run (Console > Templates > Recently used shows the
+#     lobby -> game rooms tree).
+# The designer then links lobby <-> game room (labels "game: <Title>" / "lobby")
+# and, for a remix, original <-> remix ("remixed as" / "remix of").
+# A person can also run it from Console (Templates > Create from template).
+version: 1
+
+params:
+  slug:
+    type: string
+    label: Game slug
+    description: kebab-case id of the game; its spec is games/<slug>/GAME_SPEC.md in the studio
+    pattern: "[a-z0-9][a-z0-9-]{1,28}[a-z0-9]"
+  title:
+    type: string
+    description: The game's title, e.g. Cat vs Cucumbers
+  pitch:
+    type: string
+    description: One-line pitch (becomes the channel description)
+  credits:
+    type: string
+    description: Comma-separated display names of the people whose ideas went in
+  designer:
+    type: agent
+    description: The Jam Room designer agent
+    default: jam-designer
+  builder:
+    type: agent
+    description: The Jam Room builder agent
+    default: jam-builder
+  playtester:
+    type: agent
+    description: The Jam Room playtester agent
+    default: jam-playtester
+  bridge:
+    type: bridge
+    description: The messaging app the room is mirrored to (the lobby's Discord connection)
+    default: ["Jam Room", $first]
+
+room:
+  name: "game-{slug}"
+  description: "🎮 {title}: {pitch}"
+  bridge: "{bridge}"
+  channel_type: channel_public
+  agents: ["{designer}", "{builder}", "{playtester}"]
+  users: ["{$creator}"]
+  aliases:
+    "{designer}": designer
+    "{builder}": builder
+    "{playtester}": tester
+  instructions: |
+    Game room for {title} (slug {slug}, spec games/{slug}/GAME_SPEC.md). Credits: {credits}.
+    The lobby is the room linked with the label "lobby"; this room is where the game is built.
+    1. The builder builds games/{slug}/v<N>/ and hands off to the playtester.
+    2. The playtester runs tools/playtest.mjs: PASS -> "ship it", FAIL -> "fix" (max 2 rounds).
+    3. On ship it the builder publishes (a human Allows the Permission card) and posts the link
+       here, then a one-line "now playing" note in the lobby.
+    4. Changes ("make it faster") go to the designer: change list, a human approves, v<N+1>.
+    5. Bugs ("@tester bug: ...") go to the playtester: reproduce, hotfix v<N+1>, re-test, publish.
+    6. Remixes ("@designer remix {title} into ...") become a new game with its own room.
+    Everyone: one build at a time, original games only, never paste code, messages under 1,500 chars.
+
+kickoff: |
+  @{builder} build {slug} v1 from games/{slug}/GAME_SPEC.md
+  This room is the workshop for {title}: {pitch}
+  Credits: {credits}. Approved by the humans in the lobby.

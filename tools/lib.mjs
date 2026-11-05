@@ -50,3 +50,14 @@ export function readSpec(slug) {
   return meta;
 }
 const unquote = s => s.trim().replace(/^(['"])(.*)\1$/, '$2');
+
+/** The main Jam Room repo, linked from the arcade footer. */
+export const REPO_URL = 'https://github.com/jatinvats123/jam-room';
+
+/** Hotfix info from a version's NOTES.md first bullet "- hotfix: <bug> (bug hunter: <name>)", or null. */
+export function readHotfix(slug, n) {
+  const file = path.join(versionDir(slug, n), 'NOTES.md');
+  if (!fs.existsSync(file)) return null;
+  const m = fs.readFileSync(file, 'utf8').match(/^\s*[-*]\s*hotfix:\s*(.*?)\s*(?:\(\s*bug hunter:\s*([^)]+?)\s*\))?\s*$/im);
+  return m ? { bug: m[1], hunter: m[2] || '' } : null;
+}

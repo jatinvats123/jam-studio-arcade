@@ -2,7 +2,7 @@
 // Generates the studio-root index.html: one card per game with title, pitch, credits, versions.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, GAMES, readSpec, versions, versionDir } from './lib.mjs';
+import { ROOT, GAMES, REPO_URL, readSpec, readHotfix, versions, versionDir } from './lib.mjs';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const HUES = ['#ff4d8d', '#4dd6ff', '#ffd166', '#b18cff', '#5cf2a6'];
@@ -26,25 +26,44 @@ if (fs.existsSync(GAMES)) {
     const credits = [].concat(meta.credits || []).filter(Boolean);
     const shotV = [...vs].reverse().find(n => fs.existsSync(path.join(versionDir(slug, n), 'screenshot.png')));
     const mtime = fs.statSync(path.join(versionDir(slug, latest), 'index.html')).mtimeMs;
-    games.push({ slug, vs, latest, title: meta.title || slug, pitch: meta.pitch || '', credits, shotV, mtime });
+    const hotfix = Object.fromEntries(vs.map(n => [n, readHotfix(slug, n)]).filter(([, h]) => h));
+    const hunters = [...new Set(Object.values(hotfix).map(h => h.hunter).filter(Boolean))];
+    games.push({ slug, vs, latest, title: meta.title || slug, pitch: meta.pitch || '', credits, shotV, mtime,
+      remixOf: typeof meta.remix_of === 'string' ? meta.remix_of : '', champion: meta.champion || '', hotfix, hunters });
   }
 }
 games.sort((a, b) => b.mtime - a.mtime);
+const bySlug = Object.fromEntries(games.map(g => [g.slug, g]));
+for (const g of games) g.remixes = games.filter(r => r.remixOf === g.slug);
+
+const names = list => list.map(c => `<b>${esc(c)}</b>`).join(', ');
+const gameLink = g => `<a href="games/${g.slug}/v${g.latest}/">${esc(g.title)}</a>`;
 
 function card(g, i) {
   const href = `games/${g.slug}/v${g.latest}/`;
   const thumb = g.shotV
     ? `<img src="games/${g.slug}/v${g.shotV}/screenshot.png" alt="${esc(g.title)} screenshot" loading="lazy">`
     : `<div class="ph" style="--h:${HUES[i % HUES.length]}"><span>${esc(g.title.slice(0, 1).toUpperCase())}</span></div>`;
-  const older = g.vs.slice(0, -1).reverse().map(n => `<a href="games/${g.slug}/v${n}/">v${n}</a>`).join('');
-  const credits = g.credits.length
-    ? `<p class="credits">Made by ${g.credits.map(c => `<b>${esc(c)}</b>`).join(', ')} + Jam Room agents</p>` : '';
+  const vlink = n => {
+    const h = g.hotfix[n];
+    return `<a href="games/${g.slug}/v${n}/"${h ? ` class="fix" title="hotfix: ${esc(h.bug)}"` : ''}>v${n}${h ? ' 🐛' : ''}</a>`;
+  };
+  const older = g.vs.slice(0, -1).reverse().map(vlink).join('');
+  const src = bySlug[g.remixOf];
+  const lines = [
+    g.credits.length && `<p class="credits">Made by ${names(g.credits)} + Jam Room agents</p>`,
+    g.remixOf && `<p class="meta">🔁 Remixed from ${src ? `${gameLink(src)} by ${names(src.credits)}` : esc(g.remixOf)}</p>`,
+    g.remixes.length && `<p class="meta">🔁 Remixes: ${g.remixes.map(gameLink).join(', ')}</p>`,
+    g.hunters.length && `<p class="meta">🐛 Bug hunters: ${names(g.hunters)}</p>`,
+    g.champion && `<p class="meta">🏆 Champion: <b>${esc(g.champion)}</b></p>`,
+    g.hotfix[g.latest] && `<p class="meta fixnote">Latest is a hotfix: ${esc(g.hotfix[g.latest].bug)}</p>`,
+  ].filter(Boolean).join('\n    ');
   return `<article class="card">
-  <a class="thumb" href="${href}">${thumb}<span class="badge">v${g.latest}</span></a>
+  <a class="thumb" href="${href}">${thumb}<span class="badge">v${g.latest}${g.hotfix[g.latest] ? ' · hotfix' : ''}</span>${g.remixOf ? '<span class="tag">🔁 remix</span>' : ''}</a>
   <div class="body">
     <h2><a href="${href}">${esc(g.title)}</a></h2>
     ${g.pitch ? `<p class="pitch">${esc(g.pitch)}</p>` : ''}
-    ${credits}
+    ${lines}
     <div class="row"><a class="play" href="${href}">&#9654; Play v${g.latest}</a>${older ? `<span class="older">${older}</span>` : ''}</div>
   </div>
 </article>`;
@@ -90,6 +109,11 @@ const html = `<!DOCTYPE html>
   .older { display: flex; gap: 6px; flex-wrap: wrap; }
   .older a { font-size: 12px; color: var(--dim); text-decoration: none; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; }
   .older a:hover { color: var(--text); }
+  .older a.fix { border-color: rgba(255,209,102,0.4); }
+  .meta { margin: 6px 0 0; font-size: 13px; color: var(--dim); } .meta b { color: var(--text); }
+  .meta a { color: var(--accent3); text-decoration: none; } .fixnote { color: var(--accent2); }
+  .tag { position: absolute; top: 12px; left: 12px; background: rgba(13,11,31,0.8); border: 1px solid rgba(77,214,255,0.4);
+         border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 800; color: var(--accent3); }
   .empty { grid-column: 1 / -1; text-align: center; color: var(--dim); padding: 80px 0; font-size: 18px; }
   footer { text-align: center; color: var(--dim); font-size: 13px; padding: 24px 0 40px; }
   footer a { color: var(--accent3); text-decoration: none; }
@@ -104,7 +128,7 @@ const html = `<!DOCTYPE html>
 <main>
 ${games.length ? games.map(card).join('\n') : '<p class="empty">No games yet. Pitch one in #jam-room.</p>'}
 </main>
-<footer>Made in Jam Room with <a href="https://docs.switchagents.ai">Switch</a></footer>
+<footer>Made in <a href="${REPO_URL}">Jam Room</a> with <a href="https://docs.switchagents.ai">Switch</a></footer>
 </body>
 </html>
 `;

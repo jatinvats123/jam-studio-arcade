@@ -7,15 +7,21 @@
 // Game time runs on Playwright's fake clock, so runs are deterministic (seed 42) and a 60 s game
 // takes a few real seconds. Writes playtest.json + screenshot.png next to the game and prints a
 // summary of 6 lines or fewer ending in PLAYTEST PASS or PLAYTEST FAIL. Exit code 0 = pass.
+// Regression: every saved bug repro (games/<slug>/v<=N>/repro-*.json) must still pass, and earlier
+// versions' scenario.json files are replayed as advisory checks (a changes block may alter them).
+// --only <file>: run just that scenario file from games/<slug>/v<N>/ (bug repro), write nothing.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
-import { ROOT, needSlug, versionDir, fail } from './lib.mjs';
+import { ROOT, needSlug, versions, versionDir, fail } from './lib.mjs';
 
 const slug = needSlug(process.argv[2]);
 const n = Number(process.argv[3]);
-if (!Number.isInteger(n) || n < 1) fail('Usage: node tools/playtest.mjs <slug> <N>');
+if (!Number.isInteger(n) || n < 1) fail('Usage: node tools/playtest.mjs <slug> <N> [--only repro-1.json]');
+const oi = process.argv.indexOf('--only');
+const only = oi > 0 ? process.argv[oi + 1] : null;
+if (oi > 0 && (!only || !/^[\w.-]+\.json$/.test(only))) fail('--only takes a file name in the version folder, e.g. repro-1.json');
 const dir = versionDir(slug, n);
 const gameFile = path.join(dir, 'index.html');
 if (!fs.existsSync(gameFile)) fail(`games/${slug}/v${n}/index.html does not exist.`);
@@ -28,7 +34,9 @@ const T0 = Date.now();
 const DEADLINE = T0 + 85_000;
 const SEED = 42;
 const checks = [];
-const add = (name, pass, detail = '') => { checks.push({ name, pass: !!pass, detail: String(detail).slice(0, 300) }); return pass; };
+const add = (name, pass, detail = '', advisory = false) => {
+  checks.push({ name, pass: !!pass, detail: String(detail).slice(0, 300), ...(advisory && { advisory: true }) }); return pass;
+};
 const timeLeft = () => DEADLINE - Date.now();
 
 // ---- servers: a private one for the test, and the studio one on :8080 for humans' links.
@@ -43,7 +51,7 @@ const priv = http.createServer((req, res) => {
 });
 await new Promise(r => priv.listen(0, '127.0.0.1', r));
 const gameUrl = `http://127.0.0.1:${priv.address().port}/games/${slug}/v${n}/`;
-ensureStudioServer();
+if (!only) ensureStudioServer();
 
 function ensureStudioServer() {
   const req = http.get('http://localhost:8080/', res => res.resume());
@@ -55,18 +63,30 @@ function ensureStudioServer() {
 }
 
 // ---- static check first (cheap, catches most breakage)
-const st = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'check.mjs'), slug, String(n)], { encoding: 'utf8' });
-add('static check', st.status === 0, (st.stdout + st.stderr).trim().split('\n').slice(0, 3).join(' | '));
+if (!only) {
+  const st = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'check.mjs'), slug, String(n)], { encoding: 'utf8' });
+  add('static check', st.status === 0, (st.stdout + st.stderr).trim().split('\n').slice(0, 3).join(' | '));
+}
 
-// ---- scenario file (validated up front)
-const scenarioFile = path.join(dir, 'scenario.json');
-let scenario = null, scenarioErr = '';
-if (fs.existsSync(scenarioFile)) {
+// ---- scenario files (validated up front)
+function loadScenario(file) {
+  if (!fs.existsSync(file)) return { steps: null, err: '' };
   try {
-    const raw = JSON.parse(fs.readFileSync(scenarioFile, 'utf8'));
-    scenario = Array.isArray(raw) ? raw : raw.steps;
-    if (!Array.isArray(scenario)) throw new Error('expected an array of steps (or {"steps":[...]})');
-  } catch (e) { scenarioErr = e.message; }
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const steps = Array.isArray(raw) ? raw : raw.steps;
+    if (!Array.isArray(steps)) throw new Error('expected an array of steps (or {"steps":[...]})');
+    return { steps, err: '' };
+  } catch (e) { return { steps: null, err: e.message }; }
+}
+const { steps: scenario, err: scenarioErr } = loadScenario(path.join(dir, only || 'scenario.json'));
+if (only && !scenario) fail(`games/${slug}/v${n}/${only}: ${scenarioErr || 'not found'}`);
+// Regression set: repros from every version up to N (hard), earlier scenario.json files (advisory).
+const regressions = [];
+if (!only) for (const v of versions(slug).filter(v => v <= n)) {
+  const vdir = versionDir(slug, v);
+  for (const f of fs.readdirSync(vdir).filter(f => /^repro-[\w-]+\.json$/.test(f)).sort())
+    regressions.push({ tag: `[v${v} ${f.replace('.json', '')}]`, file: path.join(vdir, f), advisory: false });
+  if (v < n) regressions.push({ tag: `[v${v} scenario]`, file: path.join(vdir, 'scenario.json'), advisory: true });
 }
 
 const browser = await chromium.launch({ headless: true });
@@ -105,8 +125,40 @@ const stateDiff = (a, b) => Object.keys({ ...a, ...b })
   .filter(k => !['time', 'frame'].includes(k) && JSON.stringify(a[k]) !== JSON.stringify(b[k]));
 const KEYBOARD = /^(Arrow(Up|Down|Left|Right)|Key[A-Z]|Digit\d|Space|Enter|Shift(Left|Right)|Control(Left|Right)|Tab|Escape|Backspace)$/;
 
+/** Runs one scenario on a fresh page. Each expect becomes a check named `<tag> <label>`. */
+async function runScenario(steps, tag = '', advisory = false) {
+  const pre = tag ? `${tag} ` : '';
+  const p = await freshPage();
+  const start = await state(p); const marks = {};
+  for (const [i, s] of steps.entries()) {
+    const where = `${pre}step ${i + 1}`;
+    if (timeLeft() < 5_000) { add(`${where}: time budget`, false, 'playtest ran out of time', advisory); break; }
+    if (s.call) {
+      if (!['start', 'reset'].includes(s.call)) { add(`${where}: call`, false, `unknown call "${s.call}" (use start or reset)`, advisory); continue; }
+      await p.evaluate(c => __jam[c](), s.call);
+    } else if (s.seed !== undefined) await p.evaluate(v => __jam.seed(v), Number(s.seed));
+    else if (s.press) {
+      if (!KEYBOARD.test(s.press)) { add(`${where}: press`, false, `unsupported key "${s.press}"`, advisory); continue; }
+      await hold(p, s.press, Number(s.ms) || 100);
+    } else if (s.wait !== undefined) await run(p, Number(s.wait));
+    else if (s.mark) marks[s.mark] = await state(p);
+    else if (s.expect) {
+      const res = await p.evaluate(({ expr, start, marks }) => {
+        const state = __jam.state();
+        try { return { ok: !!new Function('state', 'start', 'marks', `return (${expr});`)(state, start, marks), state }; }
+        catch (e) { return { ok: false, err: e.message, state }; }
+      }, { expr: s.expect, start, marks });
+      const brief = JSON.stringify(res.state).slice(0, 160);
+      add(pre + (s.label || s.expect), res.ok, res.err ? `error in "${s.expect}": ${res.err}` : `${s.expect} -> state ${brief}`, advisory);
+    } else add(`${where}: unknown step`, false, JSON.stringify(s).slice(0, 80), advisory);
+  }
+  await p.close();
+}
+
 let fps = 0, controls = [], screenshotOk = false;
 try {
+  if (only) await runScenario(scenario, `[${only.replace('.json', '')}]`);
+  else {
   // 1. Real-time load: errors, hook, title, FPS.
   const live = await ctx.newPage(); watch(live);
   await live.goto(gameUrl, { waitUntil: 'load' });
@@ -138,6 +190,17 @@ try {
   await run(p, 1000);
   add('canvas changes within 1 s', pixDiff(before, await pixels(p)) > 0.5, 'compared 48x27 thumbnails');
   await p.close();
+
+  // 2b. The acceptance scenario and every saved bug repro run early: they matter most, and the
+  //     generic checks below shrink themselves to fit the remaining time budget.
+  if (scenarioErr) add('scenario.json valid', false, scenarioErr);
+  else if (!scenario) add('scenario.json present', false, 'missing: the playtester writes it from the Acceptance list');
+  else await runScenario(scenario);
+  for (const r of regressions.filter(r => !r.advisory)) {
+    const { steps, err } = loadScenario(r.file);
+    if (err) add(`${r.tag} valid`, false, err);
+    else if (steps) await runScenario(steps, r.tag);
+  }
 
   // 3. Each control key changes the state or the picture (vs. the same run with no input).
   const keyList = controls.filter(k => KEYBOARD.test(k));
@@ -189,35 +252,13 @@ try {
   add('reset() -> title', rs.scene === 'title', `scene=${rs.scene}`);
   await p.close();
 
-  // 7. Scenario from scenario.json.
-  if (scenarioErr) add('scenario.json valid', false, scenarioErr);
-  else if (!scenario) add('scenario.json present', false, 'missing: the playtester writes it from the Acceptance list');
-  else {
-    p = await freshPage();
-    const start = await state(p); const marks = {};
-    for (const [i, s] of scenario.entries()) {
-      const where = `step ${i + 1}`;
-      if (timeLeft() < 5_000) { add(`${where}: time budget`, false, 'playtest ran out of time'); break; }
-      if (s.call) {
-        if (!['start', 'reset'].includes(s.call)) { add(`${where}: call`, false, `unknown call "${s.call}" (use start or reset)`); continue; }
-        await p.evaluate(c => __jam[c](), s.call);
-      } else if (s.seed !== undefined) await p.evaluate(v => __jam.seed(v), Number(s.seed));
-      else if (s.press) {
-        if (!KEYBOARD.test(s.press)) { add(`${where}: press`, false, `unsupported key "${s.press}"`); continue; }
-        await hold(p, s.press, Number(s.ms) || 100);
-      } else if (s.wait !== undefined) await run(p, Number(s.wait));
-      else if (s.mark) marks[s.mark] = await state(p);
-      else if (s.expect) {
-        const res = await p.evaluate(({ expr, start, marks }) => {
-          const state = __jam.state();
-          try { return { ok: !!new Function('state', 'start', 'marks', `return (${expr});`)(state, start, marks), state }; }
-          catch (e) { return { ok: false, err: e.message, state }; }
-        }, { expr: s.expect, start, marks });
-        const brief = JSON.stringify(res.state).slice(0, 160);
-        add(s.label || s.expect, res.ok, res.err ? `error in "${s.expect}": ${res.err}` : `${s.expect} -> state ${brief}`);
-      } else add(`${where}: unknown step`, false, JSON.stringify(s).slice(0, 80));
-    }
-    await p.close();
+  // 7. Advisory replays of earlier versions' scenarios, last and only if time allows.
+  for (const r of regressions.filter(r => r.advisory)) {
+    if (timeLeft() < 20_000) { checks.push({ name: `${r.tag} skipped`, pass: true, detail: 'skipped: time budget', advisory: true, skipped: true }); continue; }
+    const { steps, err } = loadScenario(r.file);
+    if (err) add(`${r.tag} valid`, false, err, true);
+    else if (steps) await runScenario(steps, r.tag, true);
+  }
   }
 } catch (e) {
   add('playtest ran to the end', false, e.message.split('\n')[0]);
@@ -227,15 +268,24 @@ try {
 }
 
 // ---- report
-const failed = checks.filter(c => !c.pass);
+const hard = checks.filter(c => !c.advisory), adv = checks.filter(c => c.advisory && !c.skipped);
+const advSkipped = checks.filter(c => c.skipped).length;
+const failed = hard.filter(c => !c.pass), advFailed = adv.filter(c => !c.pass);
 const pass = failed.length === 0;
-const report = {
-  slug, version: n, pass, when: new Date().toISOString(), seed: SEED, fps, controls,
-  seconds: +((Date.now() - T0) / 1000).toFixed(1), screenshot: screenshotOk ? 'screenshot.png' : null, checks,
-};
-fs.writeFileSync(path.join(dir, 'playtest.json'), JSON.stringify(report, null, 2) + '\n');
-const lines = [`${slug} v${n}: ${checks.length - failed.length}/${checks.length} checks passed, ${fps} fps, ${report.seconds}s`];
+const seconds = +((Date.now() - T0) / 1000).toFixed(1);
+if (!only) {
+  const report = {
+    slug, version: n, pass, when: new Date().toISOString(), seed: SEED, fps, controls, seconds,
+    screenshot: screenshotOk ? 'screenshot.png' : null, checks,
+  };
+  fs.writeFileSync(path.join(dir, 'playtest.json'), JSON.stringify(report, null, 2) + '\n');
+}
+const lines = [only
+  ? `${slug} v${n} ${only}: ${hard.length - failed.length}/${hard.length} checks passed, ${seconds}s (nothing written)`
+  : `${slug} v${n}: ${hard.length - failed.length}/${hard.length} checks passed, ${fps} fps, ${seconds}s`];
 for (const c of failed.slice(0, 4)) lines.push(`FAIL ${c.name}: ${c.detail}`.slice(0, 200));
+if (adv.length || advSkipped) lines.push((`Advisory (earlier versions' scenarios): ${adv.length - advFailed.length}/${adv.length} still hold`
+  + (advFailed.length ? `; first change: ${advFailed[0].name}` : '') + (advSkipped ? `; ${advSkipped} skipped (time budget)` : '')).slice(0, 200));
 lines.push(pass ? 'PLAYTEST PASS' : 'PLAYTEST FAIL');
 console.log(lines.join('\n'));
 process.exit(pass ? 0 : 1);
