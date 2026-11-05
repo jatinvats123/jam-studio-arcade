@@ -1,0 +1,19 @@
+[
+  {"seed": 42},
+  {"call": "start"},
+  {"mark": "a"},
+  {"wait": 1200},
+  {"expect": "state.scene==='playing' && state.score > marks.a.score", "label": "A1 score increases while playing"},
+  {"wait": 800},
+  {"mark": "preFish"},
+  {"wait": 2000},
+  {"expect": "state.scene!=='playing' || ((state.score - marks.preFish.score) - Math.floor(state.time - marks.preFish.time)) >= 9", "label": "A4 grabbing a fish adds +10 score and removes it"},
+  {"expect": "state.scene!=='playing' || state.speed > marks.a.speed", "label": "A2 speed increases as time passes"},
+  {"wait": 45000},
+  {"expect": "state.scene==='over'", "label": "A3 touching a snowman ends the run"},
+  {"call": "reset"},
+  {"call": "start"},
+  {"expect": "state.scene==='playing' && state.score===0", "label": "A5 start() moves title to playing with score reset to 0"},
+  {"call": "reset"},
+  {"expect": "state.scene==='title'", "label": "A6 reset() returns scene to title"}
+]

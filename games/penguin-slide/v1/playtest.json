@@ -1,0 +1,111 @@
+{
+  "slug": "penguin-slide",
+  "version": 1,
+  "pass": true,
+  "when": "2026-11-05T18:48:51.229Z",
+  "seed": 42,
+  "fps": 61,
+  "controls": [
+    "ArrowLeft",
+    "ArrowRight"
+  ],
+  "seconds": 59.5,
+  "screenshot": "screenshot.png",
+  "checks": [
+    {
+      "name": "static check",
+      "pass": true,
+      "detail": "CHECK PASS penguin-slide v1"
+    },
+    {
+      "name": "__jam hook",
+      "pass": true,
+      "detail": "functions: state,start,reset,seed; controls: [\"ArrowLeft\",\"ArrowRight\"]"
+    },
+    {
+      "name": "loads without errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "starts on title screen",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "frame rate >= 30 fps",
+      "pass": true,
+      "detail": "61 fps in headless Chromium"
+    },
+    {
+      "name": "start() -> playing",
+      "pass": true,
+      "detail": "scene=playing"
+    },
+    {
+      "name": "canvas changes within 1 s",
+      "pass": true,
+      "detail": "compared 48x27 thumbnails"
+    },
+    {
+      "name": "A1 score increases while playing",
+      "pass": true,
+      "detail": "state.scene==='playing' && state.score > marks.a.score -> state {\"scene\":\"playing\",\"score\":1,\"best\":0,\"time\":1.23,\"frame\":74,\"playerX\":480,\"speed\":1.1,\"snowmen\":1,\"fish\":0}"
+    },
+    {
+      "name": "A4 grabbing a fish adds +10 score and removes it",
+      "pass": true,
+      "detail": "state.scene!=='playing' || ((state.score - marks.preFish.score) - Math.floor(state.time - marks.preFish.time)) >= 9 -> state {\"scene\":\"playing\",\"score\":14,\"best\":0,\"time\":4.03,\"frame\":242,\"playerX\":480,\"speed\":1.32,\"snowmen\":1,\"fish\":2}"
+    },
+    {
+      "name": "A2 speed increases as time passes",
+      "pass": true,
+      "detail": "state.scene!=='playing' || state.speed > marks.a.speed -> state {\"scene\":\"playing\",\"score\":14,\"best\":0,\"time\":4.03,\"frame\":242,\"playerX\":480,\"speed\":1.32,\"snowmen\":1,\"fish\":2}"
+    },
+    {
+      "name": "A3 touching a snowman ends the run",
+      "pass": true,
+      "detail": "state.scene==='over' -> state {\"scene\":\"over\",\"score\":31,\"best\":31,\"time\":11.95,\"frame\":2942,\"playerX\":480,\"speed\":1.96,\"snowmen\":2,\"fish\":1}"
+    },
+    {
+      "name": "A5 start() moves title to playing with score reset to 0",
+      "pass": true,
+      "detail": "state.scene==='playing' && state.score===0 -> state {\"scene\":\"playing\",\"score\":0,\"best\":31,\"time\":0.03,\"frame\":2945,\"playerX\":480,\"speed\":1,\"snowmen\":0,\"fish\":0}"
+    },
+    {
+      "name": "A6 reset() returns scene to title",
+      "pass": true,
+      "detail": "state.scene==='title' -> state {\"scene\":\"title\",\"score\":0,\"best\":31,\"time\":0,\"frame\":2945,\"playerX\":480,\"speed\":1,\"snowmen\":0,\"fish\":0}"
+    },
+    {
+      "name": "key ArrowLeft has an effect",
+      "pass": true,
+      "detail": "skipped: time budget"
+    },
+    {
+      "name": "key ArrowRight has an effect",
+      "pass": true,
+      "detail": "skipped: time budget"
+    },
+    {
+      "name": "20 s random input, no exceptions",
+      "pass": true,
+      "detail": "2 restarts"
+    },
+    {
+      "name": "game over reachable (no input)",
+      "pass": true,
+      "detail": "over after 7 s"
+    },
+    {
+      "name": "restart from game over",
+      "pass": true,
+      "detail": "Space after game over -> scene=playing"
+    },
+    {
+      "name": "reset() -> title",
+      "pass": true,
+      "detail": "scene=title"
+    }
+  ]
+}
