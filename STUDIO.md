@@ -80,7 +80,19 @@ Games add fields by returning them from `Game.state()` inside the GAME region.
 | Builder     | `games/<slug>/v<N>/` (`index.html`, `NOTES.md`) | spec, playtest files |
 | Playtester  | `games/<slug>/v<N>/scenario.json`, `playtest.json`, `screenshot.png` | game code, spec |
 
-Nobody edits `tools/`, `starter/` or `STUDIO.md`. Only `tools/publish.mjs` runs git.
+Nobody edits `tools/`, `starter/`, `.claude/` or `STUDIO.md`. Only `tools/publish.mjs` runs git.
+`.claude/settings.json` makes `node tools/publish.mjs` ask first: Switch shows that ask in chat as a
+"Permission needed" card, so a game goes public only when a human accepts it.
+
+## Playtest scenario (`scenario.json`, written by the playtester)
+
+An array of steps run in order on a fresh page (seed 42, fake clock, so it is deterministic):
+`{"seed":7}`, `{"call":"start"}` or `{"call":"reset"}`, `{"press":"ArrowLeft","ms":500}` (hold a
+key), `{"wait":2000}` (game ms), `{"mark":"a"}` (save state as `marks.a`), and
+`{"expect":"<JS expression>","label":"Acceptance 1: score rises"}`. An expect sees `state`
+(now), `start` (state at page load) and `marks`. Write one labelled expect per Acceptance item, e.g.
+`[{"call":"start"},{"mark":"a"},{"wait":3000},{"expect":"state.score > marks.a.score","label":"A1 score rises"}]`.
+`node tools/playtest.mjs <slug> <N>` adds generic checks, writes `playtest.json` + `screenshot.png`.
 
 ## Tools (run from the studio root)
 
@@ -88,7 +100,8 @@ Nobody edits `tools/`, `starter/` or `STUDIO.md`. Only `tools/publish.mjs` runs 
 |---------|--------------|
 | `node tools/new-version.mjs <slug>` | Creates `games/<slug>/v<N+1>/` from the latest version (or the starter). Prints N. |
 | `node tools/check.mjs <slug> <N>` | Fast static check. Prints `CHECK PASS` or numbered problems. |
-| `node tools/publish.mjs <slug> <N>` | Rebuilds the arcade, commits, pushes if a remote exists, prints the link. |
+| `node tools/playtest.mjs <slug> <N>` | Plays the game headlessly. Prints `PLAYTEST PASS` or the failures. |
+| `node tools/publish.mjs <slug> <N>` | Rebuilds the arcade, commits, pushes (GitHub Pages) if a remote exists, prints the links. |
 | `node tools/build-arcade.mjs` | Regenerates the arcade `index.html`. |
 | `node tools/serve.mjs` | Serves the studio on http://localhost:8080. |
 

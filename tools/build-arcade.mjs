@@ -110,4 +110,19 @@ ${games.length ? games.map(card).join('\n') : '<p class="empty">No games yet. Pi
 `;
 
 fs.writeFileSync(path.join(ROOT, 'index.html'), html);
-console.log(`ARCADE BUILT: index.html (${count})`);
+
+// Short links: play/<slug>/ always opens the latest version (works on GitHub Pages and locally).
+const PLAY = path.join(ROOT, 'play');
+fs.rmSync(PLAY, { recursive: true, force: true });
+for (const g of games) {
+  const to = `../../games/${g.slug}/v${g.latest}/`;
+  fs.mkdirSync(path.join(PLAY, g.slug), { recursive: true });
+  fs.writeFileSync(path.join(PLAY, g.slug, 'index.html'), `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(g.title)} (Jam Room)</title><meta http-equiv="refresh" content="0; url=${to}">
+<script>location.replace(${JSON.stringify(to)} + location.search)</script></head>
+<body style="background:#0d0b1f;color:#eee;font-family:system-ui;text-align:center;padding-top:40vh">
+<a style="color:#ff4d8d" href="${to}">Play ${esc(g.title)} v${g.latest}</a></body></html>
+`);
+}
+console.log(`ARCADE BUILT: index.html (${count}), short links in play/`);
