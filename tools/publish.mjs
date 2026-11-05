@@ -1,6 +1,6 @@
 // node tools/publish.mjs <slug> <N>
 // Checks the game, rebuilds the arcade + short links, commits, pushes to GitHub Pages if an origin
-// remote exists and waits (max 120 s) until the public URL answers, then prints the links.
+// remote exists and waits (max 90 s, under the 2-minute agent tool timeout) until the public URL answers, then prints the links.
 // JAM_LOCAL=1 skips the push. Without a remote it prints localhost links.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,10 +57,10 @@ if (!m) { printLocal('origin is not a GitHub repo, so there is no Pages link.');
 const owner = m[1].toLowerCase(), repo = m[2];
 const base = repo.toLowerCase() === `${owner}.github.io` ? `https://${owner}.github.io` : `https://${owner}.github.io/${repo}`;
 const url = `${base}/games/${slug}/v${n}/`;
-// Wait for the Pages deploy: the new version's URL returns 200 once it is live (max 120 s).
+// Wait for the Pages deploy: the new version's URL returns 200 once it is live (max 90 s, under the 2-minute agent tool timeout).
 const t0 = Date.now();
 let ok = false, last = '';
-while (Date.now() - t0 < 120_000) {
+while (Date.now() - t0 < 90_000) {
   try {
     const r = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     last = String(r.status);
@@ -75,7 +75,7 @@ if (ok) {
   if (hasShot) console.log(`Screenshot: ${url}screenshot.png`);
   console.log(`Arcade: ${base}/`);
 } else {
-  console.log(`Pages did not answer 200 within 120 s (last status ${last}). It may still be deploying.`);
+  console.log(`Pages did not answer 200 within 90 s (last status ${last}). It may still be deploying.`);
   printLocal();
   console.log(`Public link (should work in a minute): ${url}`);
 }
