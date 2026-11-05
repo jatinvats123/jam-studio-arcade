@@ -10,7 +10,7 @@ const n = Number(process.argv[3]);
 if (!Number.isInteger(n) || n < 1) { console.error('Usage: node tools/check.mjs <slug> <N>'); process.exit(1); }
 
 const file = path.join(versionDir(slug, n), 'index.html');
-const rel = path.relative(ROOT, file).replace(/\/g, '/');
+const rel = path.relative(ROOT, file).split(path.sep).join('/');
 const problems = [];
 const MAX = 150 * 1024;
 

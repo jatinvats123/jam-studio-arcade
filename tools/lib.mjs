@@ -18,7 +18,7 @@ export function needSlug(slug) {
 /** Sorted list of version numbers that exist for a game, e.g. [1, 2, 3]. */
 export function versions(slug) {
   const dir = path.join(GAMES, slug);
-  if (!fs.existsSync(dir)) return [];
+  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
   return fs.readdirSync(dir, { withFileTypes: true })
     .filter(d => d.isDirectory() && /^v\d+$/.test(d.name))
     .map(d => Number(d.name.slice(1)))
@@ -31,7 +31,7 @@ export const versionDir = (slug, n) => path.join(GAMES, slug, `v${n}`);
 export function readSpec(slug) {
   const file = path.join(GAMES, slug, 'GAME_SPEC.md');
   if (!fs.existsSync(file)) return null;
-  const src = fs.readFileSync(file, 'utf8').replace(/^﻿/, '');
+  const src = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   const meta = {};
   if (!m) return meta;
