@@ -1,0 +1,86 @@
+{
+  "slug": "cat-vs-cucumbers",
+  "version": 1,
+  "pass": false,
+  "when": "2026-11-05T09:56:09.567Z",
+  "seed": 42,
+  "fps": 61,
+  "controls": [
+    "ArrowLeft",
+    "ArrowRight"
+  ],
+  "seconds": 31.6,
+  "screenshot": "screenshot.png",
+  "checks": [
+    {
+      "name": "static check",
+      "pass": true,
+      "detail": "CHECK PASS cat-vs-cucumbers v1"
+    },
+    {
+      "name": "__jam hook",
+      "pass": true,
+      "detail": "functions: state,start,reset,seed; controls: [\"ArrowLeft\",\"ArrowRight\"]"
+    },
+    {
+      "name": "loads without errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "starts on title screen",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "frame rate >= 30 fps",
+      "pass": true,
+      "detail": "61 fps in headless Chromium"
+    },
+    {
+      "name": "start() -> playing",
+      "pass": true,
+      "detail": "scene=playing"
+    },
+    {
+      "name": "canvas changes within 1 s",
+      "pass": true,
+      "detail": "compared 48x27 thumbnails"
+    },
+    {
+      "name": "key ArrowLeft has an effect",
+      "pass": true,
+      "detail": "changes catX"
+    },
+    {
+      "name": "key ArrowRight has an effect",
+      "pass": true,
+      "detail": "changes catX"
+    },
+    {
+      "name": "20 s random input, no exceptions",
+      "pass": true,
+      "detail": "3 restarts"
+    },
+    {
+      "name": "game over reachable (no input)",
+      "pass": true,
+      "detail": "over after 5 s"
+    },
+    {
+      "name": "restart from game over",
+      "pass": true,
+      "detail": "Space after game over -> scene=playing"
+    },
+    {
+      "name": "reset() -> title",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "scenario.json present",
+      "pass": false,
+      "detail": "missing: the playtester writes it from the Acceptance list"
+    }
+  ]
+}
