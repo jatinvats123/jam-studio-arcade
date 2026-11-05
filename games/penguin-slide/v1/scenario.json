@@ -9,7 +9,7 @@
   {"wait": 2000},
   {"expect": "state.scene!=='playing' || ((state.score - marks.preFish.score) - Math.floor(state.time - marks.preFish.time)) >= 9", "label": "A4 grabbing a fish adds +10 score and removes it"},
   {"expect": "state.scene!=='playing' || state.speed > marks.a.speed", "label": "A2 speed increases as time passes"},
-  {"wait": 45000},
+  {"wait": 20000},
   {"expect": "state.scene==='over'", "label": "A3 touching a snowman ends the run"},
   {"call": "reset"},
   {"call": "start"},
