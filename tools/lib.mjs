@@ -61,3 +61,7 @@ export function readHotfix(slug, n) {
   const m = fs.readFileSync(file, 'utf8').match(/^\s*[-*]\s*hotfix:\s*(.*?)\s*(?:\(\s*bug hunter:\s*([^)]+?)\s*\))?\s*$/im);
   return m ? { bug: m[1], hunter: m[2] || '' } : null;
 }
+
+/** Marker file publish.mjs writes into a version folder; only marked versions appear on the arcade. */
+export const PUBLISHED = 'PUBLISHED';
+export const isPublished = (slug, n) => fs.existsSync(path.join(versionDir(slug, n), PUBLISHED));

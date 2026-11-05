@@ -81,7 +81,7 @@ Games add fields by returning them from `Game.state()` inside the GAME region.
 |-------------|-----------|---------------|
 | Designer    | `games/<slug>/GAME_SPEC.md` | game code, tools |
 | Builder     | `games/<slug>/v<N>/` (`index.html`, `NOTES.md`) | spec, playtest files |
-| Playtester  | `games/<slug>/v<N>/scenario.json`, `repro-<k>.json`, `playtest.json`, `screenshot.png` | game code, spec |
+| Playtester  | `games/<slug>/v<N>/scenario.json`, `repro-<k>.json`, `probe.json`, `playtest.json`, `screenshot.png` | game code, spec |
 
 Nobody edits `tools/`, `starter/`, `templates/`, `.claude/` or `STUDIO.md`. Only `tools/publish.mjs` runs git.
 `.claude/settings.json` makes `node tools/publish.mjs` ask first: Switch shows that ask in chat as a
@@ -91,11 +91,13 @@ Nobody edits `tools/`, `starter/`, `templates/`, `.claude/` or `STUDIO.md`. Only
 
 An array of steps run in order on a fresh page (seed 42, fake clock, so it is deterministic):
 `{"seed":7}`, `{"call":"start"}` or `{"call":"reset"}`, `{"press":"ArrowLeft","ms":500}` (hold a
-key), `{"wait":2000}` (game ms), `{"mark":"a"}` (save state as `marks.a`), and
+key), `{"wait":2000}` (game ms), `{"mark":"a"}` (save state as `marks.a`), `{"log":"t1"}` (print the state, never a check), and
 `{"expect":"<JS expression>","label":"Acceptance 1: score rises"}`. An expect sees `state`
 (now), `start` (state at page load) and `marks`. Write one labelled expect per Acceptance item, e.g.
 `[{"call":"start"},{"mark":"a"},{"wait":3000},{"expect":"state.score > marks.a.score","label":"A1 score rises"}]`.
 `node tools/playtest.mjs <slug> <N>` adds generic checks, writes `playtest.json` + `screenshot.png`.
+To learn how a game's numbers move, put `log` steps in a scratch `probe.json` and run it with
+`--only probe.json` (seconds, writes nothing). Never put probes in `scenario.json`.
 
 **Regression.** Every run also replays each `repro-*.json` of versions 1..N (must pass: a fixed
 bug stays fixed) and earlier versions' `scenario.json` (advisory: a changes block may alter old

@@ -1,8 +1,9 @@
 // node tools/build-arcade.mjs
 // Generates the studio-root index.html: one card per game with title, pitch, credits, versions.
+// Lists only published versions (a PUBLISHED marker, written by publish.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, GAMES, REPO_URL, readSpec, readHotfix, versions, versionDir } from './lib.mjs';
+import { ROOT, GAMES, REPO_URL, readSpec, readHotfix, versions, versionDir, isPublished } from './lib.mjs';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const HUES = ['#ff4d8d', '#4dd6ff', '#ffd166', '#b18cff', '#5cf2a6'];
@@ -17,7 +18,8 @@ function fromHtml(slug, n) {
 const games = [];
 if (fs.existsSync(GAMES)) {
   for (const slug of fs.readdirSync(GAMES)) {
-    const vs = versions(slug).filter(n => fs.existsSync(path.join(versionDir(slug, n), 'index.html')));
+    // Only versions publish.mjs marked: a version still being built or tested stays off the arcade.
+    const vs = versions(slug).filter(n => fs.existsSync(path.join(versionDir(slug, n), 'index.html')) && isPublished(slug, n));
     if (!vs.length) continue;
     const latest = vs[vs.length - 1];
     const spec = readSpec(slug) || {};
