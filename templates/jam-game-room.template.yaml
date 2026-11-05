@@ -62,16 +62,17 @@ room:
     The lobby is the room linked with the label "lobby"; this room is where the game is built.
     1. The builder builds games/{slug}/v<N>/ and hands off to the playtester.
     2. The playtester runs tools/playtest.mjs: PASS -> "ship it", FAIL -> "fix" (max 2 rounds).
-    3. On ship it the builder publishes (a human Allows the Permission card) and posts the link
+    3. On ship it the builder publishes (an approver Allows the Permission card) and posts the link
        here, then a one-line "now playing" note in the lobby.
     4. Changes ("make it faster") go to the designer: change list, a human approves, v<N+1>.
     5. Bugs ("@tester bug: ...") go to the playtester: reproduce, hotfix v<N+1>, re-test, publish.
     6. Remixes ("@designer remix {title} into ...") become a new game with its own room.
-    7. Curious how it works? "@builder explain <thing>" gets a plain-language answer.
-    Everyone: one build at a time, original games only, never paste code (except the builder's one explain block), messages under 1,500 chars.
+    7. Curious how it works? "@designer explain <thing>" gets a plain-language answer.
+    Switch lets only the owner's agents and the approvers direct the builder or answer its card.
+    Everyone: one build at a time, original games only, never paste code (except the designer's one explain block), messages under 1,500 chars.
 
 kickoff: |
   @{builder} build {slug} v1 from games/{slug}/GAME_SPEC.md
   This room is the workshop for {title}: {pitch}
   Credits: {credits}. Approved by the humans in the lobby.
-  Everyone: once it's live, ask the builder to explain anything in the game.
+  Everyone: once it's live, ask the designer to explain anything in the game.

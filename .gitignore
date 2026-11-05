@@ -1,3 +1,5 @@
 node_modules/
 .browsers/
 *.log
+# chat identities (Switch sender ids -> credited names); private, never published
+people.json
