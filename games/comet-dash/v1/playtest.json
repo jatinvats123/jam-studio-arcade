@@ -1,0 +1,111 @@
+{
+  "slug": "comet-dash",
+  "version": 1,
+  "pass": true,
+  "when": "2026-11-05T18:58:16.677Z",
+  "seed": 42,
+  "fps": 61,
+  "controls": [
+    "ArrowLeft",
+    "ArrowRight"
+  ],
+  "seconds": 35.3,
+  "screenshot": "screenshot.png",
+  "checks": [
+    {
+      "name": "static check",
+      "pass": true,
+      "detail": "CHECK PASS comet-dash v1"
+    },
+    {
+      "name": "__jam hook",
+      "pass": true,
+      "detail": "functions: state,start,reset,seed; controls: [\"ArrowLeft\",\"ArrowRight\"]"
+    },
+    {
+      "name": "loads without errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "starts on title screen",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "frame rate >= 30 fps",
+      "pass": true,
+      "detail": "61 fps in headless Chromium"
+    },
+    {
+      "name": "start() -> playing",
+      "pass": true,
+      "detail": "scene=playing"
+    },
+    {
+      "name": "canvas changes within 1 s",
+      "pass": true,
+      "detail": "compared 48x27 thumbnails"
+    },
+    {
+      "name": "A1 score increases while playing",
+      "pass": true,
+      "detail": "state.scene === 'playing' && state.score > marks.a.score -> state {\"scene\":\"playing\",\"score\":2,\"best\":0,\"time\":2.03,\"frame\":123,\"catX\":480,\"comets\":4,\"stars\":1,\"speed\":1.14}"
+    },
+    {
+      "name": "A2 speed increases as time increases",
+      "pass": true,
+      "detail": "state.speed > marks.a.speed && state.time > marks.a.time -> state {\"scene\":\"playing\",\"score\":2,\"best\":0,\"time\":2.03,\"frame\":123,\"catX\":480,\"comets\":4,\"stars\":1,\"speed\":1.14}"
+    },
+    {
+      "name": "A3 comet overlapping the cat ends the run",
+      "pass": true,
+      "detail": "state.scene === 'over' -> state {\"scene\":\"over\",\"score\":3,\"best\":3,\"time\":3.53,\"frame\":243,\"catX\":480,\"comets\":5,\"stars\":2,\"speed\":1.25}"
+    },
+    {
+      "name": "A4 collecting a star gives +10 score",
+      "pass": true,
+      "detail": "marks.d.score - marks.c.score >= 10 -> state {\"scene\":\"playing\",\"score\":14,\"best\":3,\"time\":4.3,\"frame\":501,\"catX\":844,\"comets\":5,\"stars\":2,\"speed\":1.3}"
+    },
+    {
+      "name": "A5 start() from title begins playing at score 0",
+      "pass": true,
+      "detail": "state.scene === 'playing' && state.score === 0 -> state {\"scene\":\"playing\",\"score\":0,\"best\":3,\"time\":0,\"frame\":501,\"catX\":480,\"comets\":0,\"stars\":0,\"speed\":1}"
+    },
+    {
+      "name": "A6 reset() returns to the title screen",
+      "pass": true,
+      "detail": "state.scene === 'title' -> state {\"scene\":\"title\",\"score\":0,\"best\":3,\"time\":0,\"frame\":501,\"catX\":480,\"comets\":0,\"stars\":0,\"speed\":1}"
+    },
+    {
+      "name": "key ArrowLeft has an effect",
+      "pass": true,
+      "detail": "changes catX"
+    },
+    {
+      "name": "key ArrowRight has an effect",
+      "pass": true,
+      "detail": "changes catX"
+    },
+    {
+      "name": "20 s random input, no exceptions",
+      "pass": true,
+      "detail": "3 restarts"
+    },
+    {
+      "name": "game over reachable (no input)",
+      "pass": true,
+      "detail": "over after 4 s"
+    },
+    {
+      "name": "restart from game over",
+      "pass": true,
+      "detail": "Space after game over -> scene=playing"
+    },
+    {
+      "name": "reset() -> title",
+      "pass": true,
+      "detail": "scene=title"
+    }
+  ]
+}

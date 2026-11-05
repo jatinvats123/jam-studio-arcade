@@ -1,0 +1,26 @@
+[
+  {"call": "start"},
+  {"mark": "a"},
+  {"wait": 2000},
+  {"mark": "b"},
+  {"expect": "state.scene === 'playing' && state.score > marks.a.score", "label": "A1 score increases while playing"},
+  {"expect": "state.speed > marks.a.speed && state.time > marks.a.time", "label": "A2 speed increases as time increases"},
+  {"wait": 2000},
+  {"expect": "state.scene === 'over'", "label": "A3 comet overlapping the cat ends the run"},
+
+  {"seed": 42},
+  {"call": "start"},
+  {"press": "ArrowRight", "ms": 600},
+  {"wait": 3300},
+  {"mark": "c"},
+  {"wait": 400},
+  {"mark": "d"},
+  {"expect": "marks.d.score - marks.c.score >= 10", "label": "A4 collecting a star gives +10 score"},
+
+  {"call": "reset"},
+  {"call": "start"},
+  {"expect": "state.scene === 'playing' && state.score === 0", "label": "A5 start() from title begins playing at score 0"},
+
+  {"call": "reset"},
+  {"expect": "state.scene === 'title'", "label": "A6 reset() returns to the title screen"}
+]

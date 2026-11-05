@@ -1,0 +1,6 @@
+[
+  {"seed": 42},
+  {"call": "start"},
+  {"press": "ArrowRight", "ms": 30000},
+  {"expect": "state.scene === 'over'", "label": "BUG 1: hugging the right wall should not let the penguin dodge every snowman"}
+]
