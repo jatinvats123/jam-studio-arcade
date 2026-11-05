@@ -26,7 +26,8 @@ node('build-arcade.mjs');
 // GitHub Pages serves the repo root as-is; .nojekyll skips the Jekyll build so deploys are faster.
 if (!fs.existsSync(path.join(ROOT, '.nojekyll'))) fs.writeFileSync(path.join(ROOT, '.nojekyll'), '');
 // Only this game's files plus the arcade: another room's half-built version is not swept in.
-git('add', '-A', '--', `games/${slug}`, 'play', 'index.html', '.nojekyll');
+// Every game's making-of page (games/*/index.html) is regenerated too, so it is committed with it.
+git('add', '-A', '--', `games/${slug}`, ':(glob)games/*/index.html', 'play', 'index.html', '.nojekyll');
 if (tryGit('diff', '--cached', '--quiet') === null) {
   git('commit', '-q', '-m', `publish ${slug} v${n}`);
   console.log(`Committed: publish ${slug} v${n}`);

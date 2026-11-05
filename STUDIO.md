@@ -34,6 +34,7 @@ pitch: A jumpy cat dodges falling cucumbers that keep getting faster.
 credits: [alice, bob]          # Discord display names whose ideas went in
 created: 2026-11-06
 remix_of: other-game-slug      # only for remixes: the game this one started from
+approved_by: [alice]           # added by the designer when a human approves the plan
 ---
 ## Controls
 Keyboard: ArrowLeft / ArrowRight to move. Touch: on-screen ◀ ▶ buttons.
@@ -46,7 +47,7 @@ Keyboard: ArrowLeft / ArrowRight to move. Touch: on-screen ◀ ▶ buttons.
 1. Score increases while the player is alive (`state().score`).
 2. Touching a cucumber ends the run (`state().scene === 'over'`).
 ...4-8 items, each checkable through window.__jam
-## v2 changes          <- added for each later version, with its own new acceptance items
+## v2 changes (asked by bob)   <- added for each later version, with its own new acceptance items
 ```
 
 ## Game rules

@@ -28,6 +28,10 @@ const gameFile = path.join(dir, 'index.html');
 if (!fs.existsSync(gameFile)) fail(`games/${slug}/v${n}/index.html does not exist.`);
 
 let chromium;
+// Chromium lives inside the studio (.browsers/, made by setup) so a sandboxed agent can start it:
+// Codex's Windows sandbox runs commands as a user that can't read %LOCALAPPDATA%ms-playwright.
+const LOCAL_BROWSERS = path.join(ROOT, '.browsers');
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(LOCAL_BROWSERS)) process.env.PLAYWRIGHT_BROWSERS_PATH = LOCAL_BROWSERS;
 try { ({ chromium } = await import('playwright')); }
 catch { fail('Playwright is missing. Run in the studio: npm install && npx playwright install chromium'); }
 
@@ -276,6 +280,10 @@ try {
 }
 
 // ---- report
+// Which coding agent ran this playtest (shown on the "How this game was made" page). Detected from
+// the environment each CLI sets for its shell commands, so agents need no extra step.
+const env = Object.keys(process.env);
+const RUNNER = env.some(k => /^CODEX_/.test(k)) ? 'GPT · Codex' : process.env.CLAUDECODE ? 'Claude' : undefined;
 const hard = checks.filter(c => !c.advisory), adv = checks.filter(c => c.advisory && !c.skipped);
 const advSkipped = checks.filter(c => c.skipped).length;
 const failed = hard.filter(c => !c.pass), advFailed = adv.filter(c => !c.pass);
@@ -283,7 +291,7 @@ const pass = failed.length === 0;
 const seconds = +((Date.now() - T0) / 1000).toFixed(1);
 if (!only) {
   const report = {
-    slug, version: n, pass, when: new Date().toISOString(), seed: SEED, fps, controls, seconds,
+    slug, version: n, pass, when: new Date().toISOString(), runner: RUNNER, seed: SEED, fps, controls, seconds,
     screenshot: screenshotOk ? 'screenshot.png' : null, checks,
   };
   fs.writeFileSync(path.join(dir, 'playtest.json'), JSON.stringify(report, null, 2) + '\n');

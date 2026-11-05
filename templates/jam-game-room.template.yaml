@@ -67,9 +67,11 @@ room:
     4. Changes ("make it faster") go to the designer: change list, a human approves, v<N+1>.
     5. Bugs ("@tester bug: ...") go to the playtester: reproduce, hotfix v<N+1>, re-test, publish.
     6. Remixes ("@designer remix {title} into ...") become a new game with its own room.
+    7. Curious how it works? "@builder explain <thing>" gets a plain-language answer.
     Everyone: one build at a time, original games only, never paste code, messages under 1,500 chars.
 
 kickoff: |
   @{builder} build {slug} v1 from games/{slug}/GAME_SPEC.md
   This room is the workshop for {title}: {pitch}
   Credits: {credits}. Approved by the humans in the lobby.
+  Everyone: once it's live, ask the builder to explain anything in the game.

@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, GAMES, REPO_URL, readSpec, readHotfix, versions, versionDir, isPublished } from './lib.mjs';
+import { makingOfPage } from './making-of.mjs';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const HUES = ['#ff4d8d', '#4dd6ff', '#ffd166', '#b18cff', '#5cf2a6'];
@@ -31,7 +32,7 @@ if (fs.existsSync(GAMES)) {
     const hotfix = Object.fromEntries(vs.map(n => [n, readHotfix(slug, n)]).filter(([, h]) => h));
     const hunters = [...new Set(Object.values(hotfix).map(h => h.hunter).filter(Boolean))];
     games.push({ slug, vs, latest, title: meta.title || slug, pitch: meta.pitch || '', credits, shotV, mtime,
-      remixOf: typeof meta.remix_of === 'string' ? meta.remix_of : '', champion: meta.champion || '', hotfix, hunters });
+      remixOf: typeof meta.remix_of === 'string' ? meta.remix_of : '', champion: meta.champion || '', hotfix, hunters, spec });
   }
 }
 games.sort((a, b) => b.mtime - a.mtime);
@@ -67,6 +68,7 @@ function card(g, i) {
     ${g.pitch ? `<p class="pitch">${esc(g.pitch)}</p>` : ''}
     ${lines}
     <div class="row"><a class="play" href="${href}">&#9654; Play v${g.latest}</a>${older ? `<span class="older">${older}</span>` : ''}</div>
+    <a class="how" href="games/${g.slug}/">📜 How this game was made</a>
   </div>
 </article>`;
 }
@@ -116,6 +118,8 @@ const html = `<!DOCTYPE html>
   .meta a { color: var(--accent3); text-decoration: none; } .fixnote { color: var(--accent2); }
   .tag { position: absolute; top: 12px; left: 12px; background: rgba(13,11,31,0.8); border: 1px solid rgba(77,214,255,0.4);
          border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 800; color: var(--accent3); }
+  .how { display: inline-block; margin-top: 12px; font-size: 13px; color: var(--accent3); text-decoration: none; }
+  .how:hover { text-decoration: underline; }
   .empty { grid-column: 1 / -1; text-align: center; color: var(--dim); padding: 80px 0; font-size: 18px; }
   footer { text-align: center; color: var(--dim); font-size: 13px; padding: 24px 0 40px; }
   footer a { color: var(--accent3); text-decoration: none; }
@@ -130,7 +134,7 @@ const html = `<!DOCTYPE html>
 <main>
 ${games.length ? games.map(card).join('\n') : '<p class="empty">No games yet. Pitch one in #jam-room.</p>'}
 </main>
-<footer>Made in <a href="${REPO_URL}">Jam Room</a> with <a href="https://docs.switchagents.ai">Switch</a></footer>
+<footer>Made by people + AI agents in Discord via <a href="https://docs.switchagents.ai">Switch</a> · <a href="${REPO_URL}">Jam Room</a></footer>
 </body>
 </html>
 `;
@@ -151,4 +155,6 @@ for (const g of games) {
 <a style="color:#ff4d8d" href="${to}">Play ${esc(g.title)} v${g.latest}</a></body></html>
 `);
 }
-console.log(`ARCADE BUILT: index.html (${count}), short links in play/`);
+// "How this game was made" timeline per game: games/<slug>/index.html.
+for (const g of games) fs.writeFileSync(path.join(GAMES, g.slug, 'index.html'), makingOfPage(g, bySlug));
+console.log(`ARCADE BUILT: index.html (${count}), short links in play/, making-of pages in games/<slug>/`);
