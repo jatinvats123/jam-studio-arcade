@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d0b1f">
+<title>Jam Room game</title>
+<style>
+  :root {
+    --bg1: #0d0b1f; --bg2: #24124a; --accent: #ff4d8d; --accent2: #ffd166;
+    --accent3: #4dd6ff; --text: #f4f1ff; --dim: #9a93c9;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg1); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+         color: var(--text); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
+  #touch { position: fixed; inset: auto 0 0 0; display: none; justify-content: space-between;
+           padding: 0 max(16px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-bottom)); pointer-events: none; }
+  #touch.on { display: flex; }
+  #touch .grp { display: flex; gap: 14px; }
+  #touch button { pointer-events: auto; width: 72px; height: 72px; border-radius: 22px; border: 1px solid rgba(255,255,255,.18);
+           background: rgba(255,255,255,.08); color: var(--text); font: 600 26px/1 inherit; touch-action: none;
+           backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #touch button.down { background: rgba(255,77,141,.35); border-color: var(--accent); transform: scale(.96); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="touch"><div class="grp" id="tl"></div><div class="grp" id="tr"></div></div>
+<script>
+'use strict';
+// =====================================================================================
+// JAM ROOM ENGINE. Builders: don't edit this part. Write your game in the GAME region.
+// Globals you can use: view {w,h}, PAL, rand(), randRange(a,b), randInt(a,b), pick(arr),
+// clamp, lerp, keyDown(code), keyPressed(code), addScore(n), gameOver(), runTime,
+// burst(x,y,opts), shake(px), tween(obj,props,sec,ease,done), popText(str,x,y,color),
+// beep(freq,ms,type,vol,slideTo), roundRect(ctx,x,y,w,h,r), text(str,x,y,size,color,align,weight)
+// Key names are KeyboardEvent.code values: 'ArrowLeft', 'Space', 'KeyA', 'Enter'. 'Tap' = screen tap.
+// =====================================================================================
+const PAL = { bg1: '#0d0b1f', bg2: '#24124a', accent: '#ff4d8d', accent2: '#ffd166', accent3: '#4dd6ff',
+              good: '#5cf2a6', text: '#f4f1ff', dim: '#9a93c9' };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const view = { w: 0, h: 0, dpr: 1 };
+function resize() {
+  view.dpr = Math.min(2, window.devicePixelRatio || 1);
+  view.w = window.innerWidth; view.h = window.innerHeight;
+  cv.width = Math.round(view.w * view.dpr); cv.height = Math.round(view.h * view.dpr);
+  if (booted && Game.resize) Game.resize();
+}
+let booted = false;
+window.addEventListener('resize', resize); resize();
+
+// ---- math + seeded RNG (mulberry32). Game logic must use rand(), cosmetics may use Math.random().
+let rngState = (Date.now() ^ 0x9e3779b9) >>> 0;
+function rand() { rngState = (rngState + 0x6D2B79F5) >>> 0; let t = rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+const randRange = (a, b) => a + rand() * (b - a);
+const randInt = (a, b) => Math.floor(randRange(a, b + 1));
+const pick = arr => arr[Math.floor(rand() * arr.length)];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// ---- input
+const keys = new Set(), pressed = new Set();
+const BLOCK = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space']);
+function press(code) { if (!keys.has(code)) pressed.add(code); keys.add(code); unlockAudio(); }
+function release(code) { keys.delete(code); }
+window.addEventListener('keydown', e => { if (BLOCK.has(e.code)) e.preventDefault(); if (!e.repeat) press(e.code); });
+window.addEventListener('keyup', e => release(e.code));
+window.addEventListener('blur', () => keys.clear());
+const keyDown = code => keys.has(code);
+const keyPressed = code => pressed.has(code);
+const pointer = { x: 0, y: 0, down: false };
+cv.addEventListener('pointerdown', e => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.down = true; press('Tap'); });
+cv.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+window.addEventListener('pointerup', () => { pointer.down = false; release('Tap'); });
+const touchEl = document.getElementById('touch');
+function buildTouch() {
+  for (const b of (Game.touch || [])) {
+    const el = document.createElement('button'); el.textContent = b.label; el.setAttribute('aria-label', b.key);
+    const on = e => { e.preventDefault(); el.setPointerCapture?.(e.pointerId); el.classList.add('down'); press(b.key);
+                      if (scene !== 'playing') press('Tap'); };
+    const off = e => { e.preventDefault(); el.classList.remove('down'); release(b.key); release('Tap'); };
+    el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off);
+    el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
+    document.getElementById(b.side === 'right' ? 'tr' : 'tl').appendChild(el);
+  }
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) touchEl.classList.add('on');
+  window.addEventListener('touchstart', () => touchEl.classList.add('on'), { once: true, passive: true });
+}
+
+// ---- sound (WebAudio only). M toggles mute.
+let actx = null, muted = false;
+function unlockAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (actx && actx.state === 'suspended') actx.resume(); }
+function beep(freq = 440, ms = 120, type = 'square', vol = 0.12, slideTo = 0) {
+  if (!actx || muted) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + ms / 1000);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + ms / 1000 + 0.02);
+}
+
+// ---- juice: particles, shake, tweens, floating text
+const parts = [], pops = [], tweens = [];
+let shakeAmt = 0;
+function burst(x, y, o = {}) {
+  const n = o.n ?? 18, sp = o.speed ?? 260, cols = [].concat(o.color ?? [PAL.accent, PAL.accent2]);
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, s = sp * (0.3 + Math.random() * 0.7);
+    parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: (o.life ?? 0.7) * (0.6 + Math.random() * 0.6),
+                 size: (o.size ?? 4) * (0.6 + Math.random() * 0.8), color: cols[i % cols.length], g: o.gravity ?? 400 }); }
+}
+function shake(px = 8) { shakeAmt = Math.max(shakeAmt, px); }
+const EASE = { linear: t => t, outCubic: t => 1 - Math.pow(1 - t, 3), inOutSine: t => -(Math.cos(Math.PI * t) - 1) / 2,
+               outBack: t => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2) };
+function tween(obj, props, sec = 0.3, ease = 'outCubic', done) {
+  const from = {}; for (const k in props) from[k] = obj[k];
+  tweens.push({ obj, from, to: props, sec, t: 0, ease: EASE[ease] || EASE.outCubic, done });
+}
+function popText(str, x, y, color = PAL.accent2) { pops.push({ str, x, y, color, life: 0 }); }
+function updateFx(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life += dt;
+    if (p.life >= p.max) { parts.splice(i, 1); continue; }
+    p.vy += p.g * dt; p.vx *= 0.985; p.x += p.vx * dt; p.y += p.vy * dt; }
+  for (let i = pops.length - 1; i >= 0; i--) { pops[i].life += dt; pops[i].y -= 40 * dt; if (pops[i].life > 0.9) pops.splice(i, 1); }
+  for (let i = tweens.length - 1; i >= 0; i--) { const w = tweens[i]; w.t = Math.min(w.sec, w.t + dt);
+    const k = w.ease(w.sec ? w.t / w.sec : 1); for (const p in w.to) w.obj[p] = lerp(w.from[p], w.to[p], k);
+    if (w.t >= w.sec) { tweens.splice(i, 1); w.done && w.done(); } }
+  shakeAmt = Math.max(0, shakeAmt - dt * 40);
+}
+function drawFx() {
+  for (const p of parts) { const k = 1 - p.life / p.max; ctx.globalAlpha = k; ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size * k + 1, p.size * k + 1); }
+  ctx.globalAlpha = 1;
+  for (const p of pops) { ctx.globalAlpha = 1 - p.life / 0.9; text(p.str, p.x, p.y, 18, p.color, 'center', 800); }
+  ctx.globalAlpha = 1;
+}
+
+// ---- drawing helpers
+function roundRect(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function text(str, x, y, size = 16, color = PAL.text, align = 'left', weight = 600) {
+  ctx.font = `${weight} ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillStyle = color; ctx.fillText(str, x, y);
+}
+const stars = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 1.6 + 0.4, v: Math.random() * 0.02 + 0.005 }));
+function drawBackground(dt) {
+  const g = ctx.createLinearGradient(0, 0, 0, view.h); g.addColorStop(0, PAL.bg2); g.addColorStop(1, PAL.bg1);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, view.w, view.h);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (const s of stars) { s.y = (s.y + s.v * dt) % 1; ctx.globalAlpha = 0.25 + s.s * 0.3;
+    ctx.fillRect(s.x * view.w, s.y * view.h, s.s, s.s); }
+  ctx.globalAlpha = 1;
+}
+
+// ---- scenes, score, HUD
+let scene = 'title', score = 0, runTime = 0, overAt = 0, newBest = false, clock = 0, frame = 0;
+const BEST_KEY = 'jam-best:' + location.pathname;
+let best = +(localStorage.getItem(BEST_KEY) || 0);
+const hud = { bump: 1 }, ui = { a: 1 };
+function addScore(n = 1) { if (scene !== 'playing') return; score += n; hud.bump = 1.35; tween(hud, { bump: 1 }, 0.25, 'outBack'); }
+function startRun() { parts.length = pops.length = tweens.length = 0; hud.bump = 1;
+  score = 0; runTime = 0; newBest = false; Game.init(); scene = 'playing'; ui.a = 0; }
+function gameOver() { if (scene !== 'playing') return; scene = 'over'; overAt = clock;
+  if (score > best) { best = score; newBest = true; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+  ui.a = 0; tween(ui, { a: 1 }, 0.45); }
+function resetToTitle() { parts.length = pops.length = tweens.length = 0; score = 0; runTime = 0;
+  scene = 'title'; Game.init(); ui.a = 1; }
+function drawHud() {
+  if (scene === 'title') return;
+  const pad = 22;
+  text('SCORE', pad, pad + 4, 12, PAL.dim, 'left', 700);
+  ctx.save(); ctx.translate(pad, pad + 30); ctx.scale(hud.bump, hud.bump); text(String(score), 0, 0, 32, PAL.text, 'left', 800); ctx.restore();
+  text('BEST', view.w - pad, pad + 4, 12, PAL.dim, 'right', 700);
+  text(String(Math.max(best, score)), view.w - pad, pad + 30, 24, PAL.accent2, 'right', 800);
+}
+function panel(h) { const w = Math.min(460, view.w - 40), x = (view.w - w) / 2, y = (view.h - h) / 2 - 20;
+  ctx.fillStyle = 'rgba(10,8,28,0.72)'; roundRect(ctx, x, y, w, h, 24); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.stroke(); return { x, y, w, h }; }
+function gradText(str, x, y, size) {
+  ctx.font = `900 ${size}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(str).width, g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+  g.addColorStop(0, PAL.accent); g.addColorStop(1, PAL.accent2); ctx.fillStyle = g; ctx.fillText(str, x, y);
+}
+const fitSize = (str, max, width) => { ctx.font = `900 ${max}px ${FONT}`; const w = ctx.measureText(str).width; return w > width ? Math.floor(max * width / w) : max; };
+function drawOverlay() {
+  const cx = view.w / 2, blink = 0.55 + 0.45 * Math.sin(clock * 4), touch = touchEl.classList.contains('on');
+  const go = touch ? 'Tap to play' : 'Press SPACE to play';
+  ctx.globalAlpha = ui.a;
+  if (scene === 'title') {
+    const p = panel(250), cy = p.y;
+    gradText(Game.title, cx, cy + 62, fitSize(Game.title, 44, p.w - 40));
+    text(Game.pitch || '', cx, cy + 108, 15, PAL.dim, 'center', 500);
+    ctx.globalAlpha = ui.a * blink; text(go, cx, cy + 158, 20, PAL.text, 'center', 800); ctx.globalAlpha = ui.a;
+    text((Game.help || '') + (touch ? '' : '  ·  M mute'), cx, cy + 200, 13, PAL.dim, 'center', 500);
+    if (best > 0) text('Best ' + best, cx, cy + 226, 13, PAL.accent2, 'center', 700);
+  } else if (scene === 'over') {
+    const p = panel(240), cy = p.y;
+    text('GAME OVER', cx, cy + 46, 16, PAL.dim, 'center', 800);
+    gradText(String(score), cx, cy + 100, 64);
+    text(newBest ? '★ New best! ★' : 'Best ' + best, cx, cy + 150, 16, PAL.accent2, 'center', 800);
+    if (clock - overAt > 0.6) { ctx.globalAlpha = ui.a * blink; text(touch ? 'Tap to play again' : 'SPACE to play again', cx, cy + 196, 18, PAL.text, 'center', 800); }
+  }
+  ctx.globalAlpha = 1;
+  if (scene === 'title') text('Made in Jam Room', cx, view.h - (touch ? 110 : 22), 11, 'rgba(154,147,201,0.6)', 'center', 600);
+}
+
+// ---- fixed-timestep loop
+const STEP = 1 / 60;
+let last = performance.now(), acc = 0;
+function step() {
+  clock += STEP; frame++;
+  if (keyPressed('KeyM')) muted = !muted;
+  if (scene !== 'playing' && (keyPressed('Space') || keyPressed('Enter') || keyPressed('Tap'))) {
+    if (scene === 'title' || clock - overAt > 0.6) { startRun(); beep(520, 90, 'triangle', 0.1, 880); }
+  } else if (scene === 'playing') { runTime += STEP; Game.update(STEP); }
+  updateFx(STEP);
+  pressed.clear();
+}
+function loop(now) {
+  const dt = Math.min(0.25, (now - last) / 1000); last = now; acc += dt;
+  let n = 0; while (acc >= STEP && n < 8) { step(); acc -= STEP; n++; } if (n === 8) acc = 0;
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  drawBackground(dt);
+  ctx.save();
+  if (shakeAmt > 0) ctx.translate((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt);
+  Game.draw(ctx); drawFx();
+  ctx.restore();
+  drawHud(); drawOverlay();
+  requestAnimationFrame(loop);
+}
+
+// ---- test hook for the playtester. Extend via Game.state(); never remove.
+window.__jam = {
+  state() { return Object.assign({ scene, score, best, time: +runTime.toFixed(2), frame }, Game.state ? Game.state() : {}); },
+  start() { unlockAudio(); startRun(); return this.state(); },
+  reset() { resetToTitle(); return this.state(); },
+  seed(n) { rngState = (n >>> 0) || 1; return true; },
+  get controls() { return Game.controls.slice(); },
+};
+
+// === GAME START ===
+// Demo game: dodge falling blocks. Builders replace everything between START and END.
+// Contract: define `const Game = { title, pitch, help, controls, touch, init(), update(dt), draw(ctx), state() }`.
+//   init()    reset all run state (called at boot, on start and on reset). Use rand() for gameplay.
+//   update(dt) runs only while playing, dt = 1/60. Call addScore(n) and gameOver().
+//   draw(ctx) draws the world in CSS pixels (view.w x view.h). The engine draws HUD + overlays.
+//   state()   returns game-specific JSON fields for window.__jam.state().
+PAL.bg1 = '#9fe0ff'; PAL.bg2 = '#eaf8ff';           // bright sky, ground is drawn by the game
+PAL.accent = '#ff7a3d'; PAL.good = '#6fae3a';        // cat-orange / cucumber-green accents
+let CAT, cukes, spawnIn, speed, scoreTimer;
+
+const Game = {
+  title: 'Cat vs Cucumbers',
+  pitch: 'Dodge the falling cucumbers — cats hate those things!',
+  help: '← → or A D to move',
+  controls: ['ArrowLeft', 'ArrowRight'],
+  touch: [{ key: 'ArrowLeft', label: '◀', side: 'left' }, { key: 'ArrowRight', label: '▶', side: 'right' }],
+
+  init() {
+    CAT = { x: view.w / 2, y: view.h - 86, w: 58, h: 38, vx: 0, tilt: 0 };
+    cukes = []; spawnIn = 0.6; speed = 1; scoreTimer = 1;
+  },
+  resize() { if (CAT) { CAT.y = view.h - 86; CAT.x = clamp(CAT.x, CAT.w / 2, view.w - CAT.w / 2); } },
+
+  update(dt) {
+    speed = 1 + runTime * 0.08;
+    const dir = (keyDown('ArrowRight') || keyDown('KeyD') ? 1 : 0) - (keyDown('ArrowLeft') || keyDown('KeyA') ? 1 : 0);
+    const maxV = Math.max(380, view.w * 0.65);
+    CAT.vx += (dir * maxV - CAT.vx) * Math.min(1, dt * 12);
+    CAT.x = clamp(CAT.x + CAT.vx * dt, CAT.w / 2, view.w - CAT.w / 2);
+    CAT.tilt = lerp(CAT.tilt, CAT.vx / maxV * 0.2, 0.2);
+    if (Math.abs(CAT.vx) > 100 && Math.random() < 0.4)
+      parts.push({ x: CAT.x - Math.sign(CAT.vx) * CAT.w / 2, y: CAT.y + CAT.h / 2 - 2, vx: -CAT.vx * 0.15, vy: -20, life: 0, max: 0.3, size: 3, color: '#ffffff', g: 200 });
+
+    scoreTimer -= dt;                  // +1 score every second survived
+    if (scoreTimer <= 0) { addScore(1); scoreTimer += 1; beep(660, 50, 'sine', 0.05, 660); }
+
+    spawnIn -= dt;
+    if (spawnIn <= 0) {
+      const s = randRange(26, 44), x = randRange(s / 2, view.w - s / 2);
+      cukes.push({ x, y: -s, s, vy: randRange(170, 260) * speed, rot: randRange(-0.6, 0.6), vr: randRange(-1.5, 1.5) });
+      spawnIn = Math.max(0.18, 0.75 / speed) * randRange(0.6, 1.2);
+    }
+
+    for (let i = cukes.length - 1; i >= 0; i--) {
+      const q = cukes[i];
+      q.y += q.vy * dt; q.rot += q.vr * dt;
+      const dx = Math.abs(q.x - CAT.x), dy = Math.abs(q.y - CAT.y), hx = q.s * 0.36 + CAT.w * 0.32, hy = q.s * 0.36 + CAT.h * 0.32;
+      if (dx < hx && dy < hy) {
+        burst(CAT.x, CAT.y, { n: 44, speed: 400, color: ['#7cb342', '#aed581', '#fff'], size: 6, life: 0.9 });
+        shake(14); beep(140, 380, 'sawtooth', 0.14, 40); gameOver(); return;
+      }
+      if (q.y - q.s > view.h) cukes.splice(i, 1);
+    }
+  },
+
+  draw(c) {
+    c.fillStyle = 'rgba(10,20,40,0.32)'; c.fillRect(0, 0, view.w, 70);                 // HUD backing bar
+    c.fillStyle = 'rgba(60,110,50,0.3)'; c.fillRect(0, CAT.y + CAT.h / 2 + 10, view.w, 6);   // ground line
+    for (const q of cukes) {
+      c.save(); c.translate(q.x, q.y); c.rotate(q.rot);
+      c.fillStyle = '#6fae3a'; roundRect(c, -q.s / 2, -q.s * 0.32, q.s, q.s * 0.64, q.s * 0.32); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.3)'; roundRect(c, -q.s / 2 + 4, -q.s * 0.22, q.s - 8, q.s * 0.16, 6); c.fill();
+      c.strokeStyle = 'rgba(30,70,20,0.45)'; c.lineWidth = 1.5;
+      for (let k = -1; k <= 1; k++) { c.beginPath(); c.moveTo(k * q.s * 0.22, -q.s * 0.26); c.lineTo(k * q.s * 0.22, q.s * 0.26); c.stroke(); }
+      c.restore();
+    }
+    if (scene === 'over') return;   // the cat yelped and fled
+    c.save(); c.translate(CAT.x, CAT.y); c.rotate(CAT.tilt);
+    c.globalAlpha = 0.2; c.fillStyle = '#000'; c.beginPath(); c.ellipse(0, CAT.h / 2 + 8, CAT.w * 0.42, 6, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
+    c.fillStyle = '#ff9a3d'; c.beginPath(); c.ellipse(0, 0, CAT.w / 2, CAT.h / 2, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.moveTo(-CAT.w / 2 + 6, -CAT.h / 2 + 4); c.lineTo(-CAT.w / 2 - 6, -CAT.h / 2 - 16); c.lineTo(-CAT.w / 2 + 16, -CAT.h / 2 - 2); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(CAT.w / 2 - 6, -CAT.h / 2 + 4); c.lineTo(CAT.w / 2 + 6, -CAT.h / 2 - 16); c.lineTo(CAT.w / 2 - 16, -CAT.h / 2 - 2); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.3)'; roundRect(c, -CAT.w / 2 + 8, -4, CAT.w - 16, 8, 4); c.fill();
+    c.fillStyle = '#1b2a4a'; c.beginPath(); c.arc(-10, -4, 3, 0, Math.PI * 2); c.arc(10, -4, 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#ff5d8f'; c.beginPath(); c.moveTo(-3, 4); c.lineTo(3, 4); c.lineTo(0, 8); c.closePath(); c.fill();
+    c.restore();
+  },
+
+  state() { return { catX: Math.round(CAT.x), cucumbers: cukes.length, speed: +speed.toFixed(2) }; },
+};
+// === GAME END ===
+
+buildTouch();
+Game.init(); booted = true;
+document.title = Game.title + ' · Jam Room';
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
