@@ -2,7 +2,7 @@
 #
 # The designer runs this template itself, from the lobby (#jam-room), when the
 # humans approve a new game: it calls the agent op `create_room_from_yaml` with
-# this file's text and the four game inputs. Switch then
+# this file's text and the game inputs. Switch then
 #   - creates the room game-<slug> and its own Discord channel,
 #   - puts the three agents and the person who owns them in it, with short
 #     aliases (@designer, @builder, @tester),
@@ -68,7 +68,7 @@ room:
     5. Bugs ("@tester bug: ...") go to the playtester: reproduce, hotfix v<N+1>, re-test, publish.
     6. Remixes ("@designer remix {title} into ...") become a new game with its own room.
     7. Curious how it works? "@builder explain <thing>" gets a plain-language answer.
-    Everyone: one build at a time, original games only, never paste code, messages under 1,500 chars.
+    Everyone: one build at a time, original games only, never paste code (except the builder's one explain block), messages under 1,500 chars.
 
 kickoff: |
   @{builder} build {slug} v1 from games/{slug}/GAME_SPEC.md
