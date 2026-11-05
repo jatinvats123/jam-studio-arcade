@@ -17,12 +17,12 @@ const node = (script, ...args) => execFileSync(process.execPath, [path.join(ROOT
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const tryGit = (...args) => { try { return git(...args); } catch { return null; } };
 
+if (tryGit('rev-parse', '--is-inside-work-tree') !== 'true') fail('PUBLISH ABORTED: the studio is not a git repo. Run the setup script.');
 try { node('check.mjs', slug, String(n)); } catch { fail('PUBLISH ABORTED: fix the check problems above first.'); }
 // The marker is what puts a version on the arcade: work in progress in other folders stays off it.
 fs.writeFileSync(path.join(versionDir(slug, n), PUBLISHED), `${new Date().toISOString()}\n`);
 node('build-arcade.mjs');
 
-if (tryGit('rev-parse', '--is-inside-work-tree') !== 'true') fail('PUBLISH ABORTED: the studio is not a git repo. Run the setup script.');
 // GitHub Pages serves the repo root as-is; .nojekyll skips the Jekyll build so deploys are faster.
 if (!fs.existsSync(path.join(ROOT, '.nojekyll'))) fs.writeFileSync(path.join(ROOT, '.nojekyll'), '');
 // Only this game's files plus the arcade: another room's half-built version is not swept in.

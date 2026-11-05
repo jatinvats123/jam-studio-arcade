@@ -19,6 +19,7 @@ games/<slug>/
   v<N>/repro-<k>.json     a player's bug report as scenario steps (playtester); replayed forever
   v<N>/playtest.json      playtest results (playtester)
   v<N>/screenshot.png     mid-game screenshot (playtester)
+  v<N>/PUBLISHED          written by tools/publish.mjs; only these versions appear on the arcade
 ```
 
 `<slug>` is kebab-case, 3-30 chars, `a-z0-9-` only (e.g. `cat-vs-cucumbers`). Versions start at 1.

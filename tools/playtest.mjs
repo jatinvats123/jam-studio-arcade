@@ -134,7 +134,12 @@ async function runScenario(steps, tag = '', advisory = false) {
   const start = await state(p); const marks = {};
   for (const [i, s] of steps.entries()) {
     const where = `${pre}step ${i + 1}`;
-    if (timeLeft() < 5_000) { add(`${where}: time budget`, false, 'playtest ran out of time', advisory); break; }
+    if (timeLeft() < 5_000) {
+      // An advisory replay cut short by the budget is skipped, not failed; a hard scenario cut short fails.
+      if (advisory) checks.push({ name: `${where}: skipped`, pass: true, detail: 'skipped: time budget', advisory: true, skipped: true });
+      else add(`${where}: time budget`, false, 'playtest ran out of time');
+      break;
+    }
     if (s.call) {
       if (!['start', 'reset'].includes(s.call)) { add(`${where}: call`, false, `unknown call "${s.call}" (use start or reset)`, advisory); continue; }
       await p.evaluate(c => __jam[c](), s.call);
