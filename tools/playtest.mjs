@@ -57,7 +57,7 @@ const priv = http.createServer((req, res) => {
 });
 await new Promise(r => priv.listen(0, '127.0.0.1', r));
 const gameUrl = `http://127.0.0.1:${priv.address().port}/games/${slug}/v${n}/`;
-if (!only) ensureStudioServer();
+if (!only && !process.env.JAM_NO_SERVE) ensureStudioServer(); // JAM_NO_SERVE=1: verify/eval runs, no :8080
 
 function ensureStudioServer() {
   const req = http.get('http://localhost:8080/', res => res.resume());
@@ -108,6 +108,9 @@ const watch = p => {
 async function freshPage() {
   const p = await ctx.newPage(); watch(p);
   await p.clock.install({ time: 0 });
+  // Paused: otherwise real time keeps flowing into the fake clock, so a slow machine (CI) sees
+  // extra game time and timing-tight checks differ between machines. Only run() moves time now.
+  await p.clock.pauseAt(1000);
   await p.goto(gameUrl, { waitUntil: 'load' });
   const ok = await p.evaluate(() => !!(window.__jam && window.__jam.state));
   if (!ok) throw new Error('window.__jam is missing');
@@ -115,7 +118,15 @@ async function freshPage() {
   return p;
 }
 const state = p => p.evaluate(() => __jam.state());
-const run = (p, ms) => p.clock.runFor(ms);
+// On the paused clock a busy loop that waits on performance.now()/Date.now() never ends, which
+// freezes the page; cap each advance in real time so that becomes a FAIL instead of a hang.
+const FREEZE_MS = 20_000;
+const run = (p, ms) => {
+  let timer;
+  const frozen = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(
+    `game froze: ${ms} ms of game time didn't finish in ${FREEZE_MS / 1000} s (a loop that waits on the clock?)`)), FREEZE_MS); });
+  return Promise.race([p.clock.runFor(ms), frozen]).finally(() => clearTimeout(timer));
+};
 async function hold(p, key, ms) { await p.keyboard.down(key); await run(p, ms); await p.keyboard.up(key); }
 /** 48x27 grayscale thumbnail of the canvas, to tell whether anything on screen changed. */
 const pixels = p => p.evaluate(() => {
@@ -203,8 +214,21 @@ try {
   add('canvas changes within 1 s', pixDiff(before, await pixels(p)) > 0.5, 'compared 48x27 thumbnails');
   await p.close();
 
-  // 2b. The acceptance scenario and every saved bug repro run early: they matter most, and the
-  //     generic checks below shrink themselves to fit the remaining time budget.
+  // 3. Each control key changes the state or the picture (vs. the same run with no input). Runs
+  //    before the scenario: it is cheap, and a key skipped for time would hide a dead control.
+  const keyList = controls.filter(k => KEYBOARD.test(k));
+  if (!keyList.length) add('controls listed', false, `__jam.controls has no keyboard keys: ${JSON.stringify(controls)}`);
+  const base = await freshPage(); await base.evaluate(() => __jam.start()); await run(base, 600);
+  const baseState = await state(base), basePix = await pixels(base); await base.close();
+  for (const key of keyList) {
+    const q = await freshPage(); await q.evaluate(() => __jam.start()); await hold(q, key, 600);
+    const ds = stateDiff(baseState, await state(q)), dp = pixDiff(basePix, await pixels(q));
+    add(`key ${key} has an effect`, ds.length || dp > 0.5, ds.length ? `changes ${ds.slice(0, 4).join(', ')}` : dp > 0.5 ? 'changes the picture' : 'no change to state or picture after 600 ms');
+    await q.close();
+  }
+
+  // 2b. The acceptance scenario and every saved bug repro run next, before the generic checks
+  //     below, which shrink themselves to fit the remaining time budget.
   if (scenarioErr) add('scenario.json valid', false, scenarioErr);
   else if (!scenario) add('scenario.json present', false, 'missing: the playtester writes it from the Acceptance list');
   else await runScenario(scenario);
@@ -212,19 +236,6 @@ try {
     const { steps, err } = loadScenario(r.file);
     if (err) add(`${r.tag} valid`, false, err);
     else if (steps) await runScenario(steps, r.tag);
-  }
-
-  // 3. Each control key changes the state or the picture (vs. the same run with no input).
-  const keyList = controls.filter(k => KEYBOARD.test(k));
-  if (!keyList.length) add('controls listed', false, `__jam.controls has no keyboard keys: ${JSON.stringify(controls)}`);
-  const base = await freshPage(); await base.evaluate(() => __jam.start()); await run(base, 600);
-  const baseState = await state(base), basePix = await pixels(base); await base.close();
-  for (const key of keyList) {
-    if (timeLeft() < 40_000) { add(`key ${key} has an effect`, true, 'skipped: time budget'); continue; }
-    const q = await freshPage(); await q.evaluate(() => __jam.start()); await hold(q, key, 600);
-    const ds = stateDiff(baseState, await state(q)), dp = pixDiff(basePix, await pixels(q));
-    add(`key ${key} has an effect`, ds.length || dp > 0.5, ds.length ? `changes ${ds.slice(0, 4).join(', ')}` : dp > 0.5 ? 'changes the picture' : 'no change to state or picture after 600 ms');
-    await q.close();
   }
 
   // 4. Mid-game screenshot (canvas only, after 2.5 s of play with some input).
