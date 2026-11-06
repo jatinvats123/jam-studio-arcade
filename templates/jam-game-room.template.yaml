@@ -62,6 +62,7 @@ room:
     The lobby is the room linked with the label "lobby"; this room is where the game is built.
     1. The builder builds games/{slug}/v<N>/ and hands off to the playtester.
     2. The playtester runs tools/playtest.mjs: PASS -> "ship it", FAIL -> "fix" (max 2 rounds).
+       After a PASS or a reproduced bug it also posts a GIF of that same run (clip.mjs), after its handoff line.
     3. On ship it the builder publishes (an approver Allows the Permission card) and posts the link
        here, then a one-line "now playing" note in the lobby.
     4. Changes ("make it faster") go to the designer: change list, a human approves, v<N+1>.

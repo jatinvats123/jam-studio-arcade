@@ -119,6 +119,7 @@ A hotfix version's `NOTES.md` starts with `- hotfix: <bug> (bug hunter: <name>)`
 | `node tools/new-version.mjs <slug> --from <old>` | v1 of a remix: starts from the latest version of `<old>`. |
 | `node tools/check.mjs <slug> <N>` | Fast static check. Prints `CHECK PASS` or numbered problems. |
 | `node tools/playtest.mjs <slug> <N> [--only <file>]` | Plays the game headlessly (+ regression). Prints `PLAYTEST PASS` or the failures. |
+| `node tools/clip.mjs <slug> <N> [--repro repro-<k>.json [--vs <M>]]` | GIF of the same deterministic run as the playtest: `clip.gif` (~6 s of play), `repro-<k>.gif` (the bug on camera) or `fix-<k>.gif` (v<M> vs v<N>, same moves). Prints the path. |
 | `node tools/publish.mjs <slug> <N>` | Rebuilds the arcade, commits, pushes (GitHub Pages) if a remote exists, prints the links. |
 | `node tools/build-arcade.mjs` | Regenerates the arcade `index.html`. |
 | `node tools/serve.mjs` | Serves the studio on http://localhost:8080. |

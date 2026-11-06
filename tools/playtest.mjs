@@ -11,11 +11,13 @@
 // versions' scenario.json files are replayed as advisory checks (a changes block may alter them).
 // --only <file>: run just that scenario file from games/<slug>/v<N>/ (bug repro, probe), write nothing.
 // A {"log":"name"} step prints the state at that moment (for exploring); it is never a check.
+// The browser, fake clock and scenario step runner live in player.mjs, shared with clip.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
 import { ROOT, needSlug, versions, versionDir, fail } from './lib.mjs';
+import { SEED, KEYBOARD, loadChromium, startServer, freshPage as openPage, loadScenario, playSteps, run, hold, state } from './player.mjs';
 
 const slug = needSlug(process.argv[2]);
 const n = Number(process.argv[3]);
@@ -27,17 +29,10 @@ const dir = versionDir(slug, n);
 const gameFile = path.join(dir, 'index.html');
 if (!fs.existsSync(gameFile)) fail(`games/${slug}/v${n}/index.html does not exist.`);
 
-let chromium;
-// Chromium lives inside the studio (.browsers/, made by setup) so a sandboxed agent can start it:
-// Codex's Windows sandbox runs commands as a user that can't read %LOCALAPPDATA%ms-playwright.
-const LOCAL_BROWSERS = path.join(ROOT, '.browsers');
-if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(LOCAL_BROWSERS)) process.env.PLAYWRIGHT_BROWSERS_PATH = LOCAL_BROWSERS;
-try { ({ chromium } = await import('playwright')); }
-catch { fail('Playwright is missing. Run in the studio: npm install && npx playwright install chromium'); }
+const chromium = await loadChromium();
 
 const T0 = Date.now();
 const DEADLINE = T0 + 85_000;
-const SEED = 42;
 const checks = [];
 const logs = [];   // {"log":"name"} steps: state snapshots printed for exploring, never a check
 const add = (name, pass, detail = '', advisory = false) => {
@@ -46,17 +41,8 @@ const add = (name, pass, detail = '', advisory = false) => {
 const timeLeft = () => DEADLINE - Date.now();
 
 // ---- servers: a private one for the test, and the studio one on :8080 for humans' links.
-const TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.png': 'image/png' };
-const priv = http.createServer((req, res) => {
-  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  let file = path.join(ROOT, path.normalize(url));
-  if (!file.startsWith(ROOT)) return res.writeHead(403).end();
-  if (url.endsWith('/')) file = path.join(file, 'index.html');
-  fs.readFile(file, (e, data) => e ? res.writeHead(404).end('Not found')
-    : res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' }).end(data));
-});
-await new Promise(r => priv.listen(0, '127.0.0.1', r));
-const gameUrl = `http://127.0.0.1:${priv.address().port}/games/${slug}/v${n}/`;
+const priv = await startServer();
+const gameUrl = `${priv.origin}/games/${slug}/v${n}/`;
 if (!only && !process.env.JAM_NO_SERVE) ensureStudioServer(); // JAM_NO_SERVE=1: verify/eval runs, no :8080
 
 function ensureStudioServer() {
@@ -75,15 +61,6 @@ if (!only) {
 }
 
 // ---- scenario files (validated up front)
-function loadScenario(file) {
-  if (!fs.existsSync(file)) return { steps: null, err: '' };
-  try {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const steps = Array.isArray(raw) ? raw : raw.steps;
-    if (!Array.isArray(steps)) throw new Error('expected an array of steps (or {"steps":[...]})');
-    return { steps, err: '' };
-  } catch (e) { return { steps: null, err: e.message }; }
-}
 const { steps: scenario, err: scenarioErr } = loadScenario(path.join(dir, only || 'scenario.json'));
 if (only && !scenario) fail(`games/${slug}/v${n}/${only}: ${scenarioErr || 'not found'}`);
 // Regression set: repros from every version up to N (hard), earlier scenario.json files (advisory).
@@ -104,37 +81,8 @@ const watch = p => {
   p.on('request', r => { if (!r.url().startsWith(gameUrl.split('/games/')[0])) errors.push(`network request: ${r.url()}`); });
 };
 
-/** A fresh page on the fake clock, seeded and on the title screen. */
-async function freshPage() {
-  const p = await ctx.newPage(); watch(p);
-  await p.clock.install({ time: 0 });
-  // Paused: otherwise real time keeps flowing into the fake clock, so a slow machine (CI) sees
-  // extra game time and timing-tight checks differ between machines. Only run() moves time now.
-  await p.clock.pauseAt(1000);
-  await p.goto(gameUrl, { waitUntil: 'load' });
-  const ok = await p.evaluate(() => !!(window.__jam && window.__jam.state));
-  if (!ok) throw new Error('window.__jam is missing');
-  // The page's load time still depends on machine speed (Playwright replays the paused clock at
-  // the real time it was paused), and fake frames fire on a 16 ms grid, so the game loop's phase
-  // differed by a step between runs. Jump to the next grid point >= 1 s ahead: one frame with a
-  // long gap, so a fixed-step loop clamps it and drops its leftover time; every run then lines up.
-  const t = await p.evaluate(() => performance.now());
-  await guard(p.clock.fastForward(1000 + ((16 - (t % 16)) % 16)), 'the first frame');
-  await p.evaluate(s => { __jam.seed(s); __jam.reset(); }, SEED);
-  return p;
-}
-const state = p => p.evaluate(() => __jam.state());
-// On the paused clock a busy loop that waits on performance.now()/Date.now() never ends, which
-// freezes the page; cap each advance in real time so that becomes a FAIL instead of a hang.
-const FREEZE_MS = 20_000;
-function guard(clockMove, what) {
-  let timer;
-  const frozen = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(
-    `game froze: ${what} didn't finish in ${FREEZE_MS / 1000} s (a loop that waits on the clock?)`)), FREEZE_MS); });
-  return Promise.race([clockMove, frozen]).finally(() => clearTimeout(timer));
-}
-const run = (p, ms) => guard(p.clock.runFor(ms), `${ms} ms of game time`);
-async function hold(p, key, ms) { await p.keyboard.down(key); await run(p, ms); await p.keyboard.up(key); }
+/** A fresh page on the fake clock, seeded and on the title screen (player.mjs). */
+const freshPage = () => openPage(ctx, gameUrl, { watch });
 /** 48x27 grayscale thumbnail of the canvas, to tell whether anything on screen changed. */
 const pixels = p => p.evaluate(() => {
   const c = document.querySelector('canvas'); if (!c) return [];
@@ -147,41 +95,26 @@ const pixels = p => p.evaluate(() => {
 const pixDiff = (a, b) => a.length && a.length === b.length ? a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length : 0;
 const stateDiff = (a, b) => Object.keys({ ...a, ...b })
   .filter(k => !['time', 'frame'].includes(k) && JSON.stringify(a[k]) !== JSON.stringify(b[k]));
-const KEYBOARD = /^(Arrow(Up|Down|Left|Right)|Key[A-Z]|Digit\d|Space|Enter|Shift(Left|Right)|Control(Left|Right)|Tab|Escape|Backspace)$/;
 
 /** Runs one scenario on a fresh page. Each expect becomes a check named `<tag> <label>`. */
 async function runScenario(steps, tag = '', advisory = false) {
   const pre = tag ? `${tag} ` : '';
   const p = await freshPage();
-  const start = await state(p); const marks = {};
-  for (const [i, s] of steps.entries()) {
-    const where = `${pre}step ${i + 1}`;
-    if (timeLeft() < 5_000) {
+  await playSteps(p, steps, {
+    stop: where => {
+      if (timeLeft() >= 5_000) return false;
       // An advisory replay cut short by the budget is skipped, not failed; a hard scenario cut short fails.
-      if (advisory) checks.push({ name: `${where}: skipped`, pass: true, detail: 'skipped: time budget', advisory: true, skipped: true });
-      else add(`${where}: time budget`, false, 'playtest ran out of time');
-      break;
-    }
-    if (s.call) {
-      if (!['start', 'reset'].includes(s.call)) { add(`${where}: call`, false, `unknown call "${s.call}" (use start or reset)`, advisory); continue; }
-      await p.evaluate(c => __jam[c](), s.call);
-    } else if (s.seed !== undefined) await p.evaluate(v => __jam.seed(v), Number(s.seed));
-    else if (s.press) {
-      if (!KEYBOARD.test(s.press)) { add(`${where}: press`, false, `unsupported key "${s.press}"`, advisory); continue; }
-      await hold(p, s.press, Number(s.ms) || 100);
-    } else if (s.wait !== undefined) await run(p, Number(s.wait));
-    else if (s.mark) marks[s.mark] = await state(p);
-    else if (s.log) logs.push(`LOG ${pre}${s.log}: ${JSON.stringify(await state(p))}`.slice(0, 240));
-    else if (s.expect) {
-      const res = await p.evaluate(({ expr, start, marks }) => {
-        const state = __jam.state();
-        try { return { ok: !!new Function('state', 'start', 'marks', `return (${expr});`)(state, start, marks), state }; }
-        catch (e) { return { ok: false, err: e.message, state }; }
-      }, { expr: s.expect, start, marks });
+      if (advisory) checks.push({ name: `${pre}${where}: skipped`, pass: true, detail: 'skipped: time budget', advisory: true, skipped: true });
+      else add(`${pre}${where}: time budget`, false, 'playtest ran out of time');
+      return true;
+    },
+    bad: (where, what, detail) => add(`${pre}${where}: ${what}`, false, detail, advisory),
+    log: (name, st) => logs.push(`LOG ${pre}${name}: ${JSON.stringify(st)}`.slice(0, 240)),
+    expect: (s, res) => {
       const brief = JSON.stringify(res.state).slice(0, 160);
       add(pre + (s.label || s.expect), res.ok, res.err ? `error in "${s.expect}": ${res.err}` : `${s.expect} -> state ${brief}`, advisory);
-    } else add(`${where}: unknown step`, false, JSON.stringify(s).slice(0, 80), advisory);
-  }
+    },
+  });
   await p.close();
 }
 

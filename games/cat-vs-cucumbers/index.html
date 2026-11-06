@@ -31,6 +31,7 @@
   .quote { margin: 6px 0 0; color: var(--dim); font-style: italic; font-size: 14px; } .dim { margin: 6px 0 0; color: var(--dim); font-size: 13px; }
   code { font-size: 12.5px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 5px; }
   .st img { display: block; margin-top: 10px; width: 100%; max-width: 420px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+  .st img.wide { max-width: 100%; }
   .legend { margin-top: 8px; color: var(--dim); font-size: 13px; }
   footer { text-align: center; color: var(--dim); font-size: 13px; padding: 12px 0 40px; }
 </style>
@@ -46,7 +47,7 @@
 <li><span class="ic">💡</span><div class="st"><p class="hd"><b>Jatiiin.vats</b> pitched the idea in Discord <time>5 Nov, 05:30 IST</time></p></div></li>
 <li><span class="ic">🎨</span><div class="st"><p class="hd"><span class="agent">designer</span> wrote the plan (GAME_SPEC.md)</p><p class="quote">A jumpy cat dodges falling cucumbers that keep getting faster.</p></div></li>
 <li><span class="ic">🛠</span><div class="st"><p class="hd"><span class="agent">builder</span> built v1</p><ul><li>Cat moves left/right at the bottom of the screen; cucumbers spawn at random x at the top and fall straight down, matching the Block Rain engine&#39;s dodge loop.</li><li>Fall speed and spawn rate both scale with <code>speed = 1 + time * 0.08</code>, exposed via <code>state().speed</code>, so difficulty ramps continuously the longer the run lasts.</li><li>Score ticks up by 1 every second survived while <code>scene === &#39;playing&#39;</code> (a soft tick beep plays each tick), independent of dodge count.</li></ul></div></li>
-<li><span class="ic">🧪</span><div class="st"><p class="hd"><span class="agent">playtester</span> 19/19 checks PASS, 61 fps <time>5 Nov, 15:55 IST</time></p><ul class="checks"><li>✅ A1 score increases while playing</li><li>✅ A2 speed increases as time increases</li><li>✅ A3 cucumber overlap ends the run</li><li>✅ A4 start() moves title to playing with score 0</li><li>✅ A5 reset() returns to title</li><li>✅ A6 only ArrowLeft/ArrowRight controls</li></ul><a href="v1/"><img src="v1/screenshot.png" alt="screenshot" loading="lazy"></a></div></li>
+<li><span class="ic">🧪</span><div class="st"><p class="hd"><span class="agent">playtester</span> 19/19 checks PASS, 61 fps <time>5 Nov, 15:55 IST</time></p><ul class="checks"><li>✅ A1 score increases while playing</li><li>✅ A2 speed increases as time increases</li><li>✅ A3 cucumber overlap ends the run</li><li>✅ A4 start() moves title to playing with score 0</li><li>✅ A5 reset() returns to title</li><li>✅ A6 only ArrowLeft/ArrowRight controls</li></ul><a href="v1/"><img src="v1/screenshot.png" alt="the playtester playing it" loading="lazy"></a></div></li>
 <li><span class="ic">🚀</span><div class="st"><p class="hd"><span class="agent">builder</span> published <a href="v1/">v1</a> to the arcade <time>5 Nov, 15:25 IST</time></p></div></li>
 <li><span class="ic">🔁</span><div class="st"><p class="hd"><b>Jatiiin.vats</b> remixed it as <a href="../comet-dash/">Comet Dash</a></p></div></li>
   </ol>

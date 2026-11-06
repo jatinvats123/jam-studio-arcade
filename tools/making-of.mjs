@@ -12,6 +12,8 @@ const md = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^
 const readJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
 const names = list => list.map(c => `<b>${esc(c)}</b>`).join(', ');
 const agent = s => `<span class="agent">${s}</span>`;
+/** "v<N>/<file>" if the version folder has it (clips from tools/clip.mjs, screenshots), else ''. */
+const media = (slug, n, ...files) => { const f = files.find(f => f && fs.existsSync(path.join(versionDir(slug, n), f))); return f ? `v${n}/${f}` : ''; };
 
 /** First publish time of each version, from the studio's "publish <slug> v<N>" commits. */
 function publishTimes(slug) {
@@ -84,8 +86,11 @@ export function makingOfPage(g, bySlug) {
       body: ch.items.length ? `<ul>${ch.items.slice(0, 4).map(i => `<li>${md(i)}</li>`).join('')}</ul>` : '' });
     const fix = g.hotfix[n];
     const notes = bullets(path.join(dir, 'NOTES.md')).filter(b => !/^hotfix:/i.test(b));
+    // A hotfix shows its side-by-side clip: the bug's repro on the old version vs this one.
+    const fixGif = fix ? fs.readdirSync(dir).filter(f => /^fix-[\w-]+\.gif$/.test(f)).sort()[0] : '';
     steps.push({ icon: fix ? '🩹' : '🛠', who: agent('builder'), what: fix ? `shipped hotfix v${n}: ${esc(fix.bug)}` : `built v${n}`,
-      body: notes.length ? `<ul>${notes.slice(0, fix ? 2 : 3).map(b => `<li>${md(b.length > 220 ? b.slice(0, 217) + '…' : b)}</li>`).join('')}</ul>` : '' });
+      body: notes.length ? `<ul>${notes.slice(0, fix ? 2 : 3).map(b => `<li>${md(b.length > 220 ? b.slice(0, 217) + '…' : b)}</li>`).join('')}</ul>` : '',
+      img: fixGif ? `v${n}/${fixGif}` : '', alt: 'the same moves on the buggy and the fixed version', wide: true });
 
     const pt = readJson(path.join(dir, 'playtest.json'));
     if (pt?.checks) {
@@ -95,7 +100,7 @@ export function makingOfPage(g, bySlug) {
       const runner = pt.runner ? ` (${esc(pt.runner)})` : '';
       steps.push({ icon: '🧪', who: agent(`playtester${runner}`), what: `${ok}/${hard.length} checks ${pt.pass ? 'PASS' : 'FAIL'}${pt.fps ? `, ${pt.fps} fps` : ''}${adv.length ? `, ${adv.filter(c => c.pass).length}/${adv.length} earlier checks still hold` : ''}`,
         body: items.length ? `<ul class="checks">${items.map(c => `<li>${c.pass ? '✅' : '❌'} ${esc(c.name)}</li>`).join('')}</ul>` : '',
-        time: pt.when, img: pt.screenshot && fs.existsSync(path.join(dir, pt.screenshot)) ? `v${n}/${pt.screenshot}` : '' });
+        time: pt.when, img: media(slug, n, 'clip.gif', pt.screenshot), alt: 'the playtester playing it' });
     }
     const pub = times[n] || (fs.existsSync(path.join(dir, 'PUBLISHED')) ? fs.readFileSync(path.join(dir, 'PUBLISHED'), 'utf8').trim() : '');
     steps.push({ icon: '🚀', who: agent('builder'), what: `published <a href="v${n}/">v${n}</a> to the arcade`, time: pub });
@@ -105,12 +110,13 @@ export function makingOfPage(g, bySlug) {
       const label = (readJson(path.join(dir, f)) || []).find(s => s && s.label && /^BUG/i.test(s.label))?.label;
       const hunter = g.hotfix[n + 1]?.hunter;
       steps.push({ icon: '🐛', who: hunter ? names([hunter]) : 'A player', what: 'reported a bug while playing' });
-      if (label) steps.push({ icon: '🧪', who: agent('playtester'), what: `reproduced it headlessly: ${esc(label)}`, body: `<p class="dim">Saved as <code>v${n}/${f}</code>, replayed by every later playtest.</p>` });
+      if (label) steps.push({ icon: '🧪', who: agent('playtester'), what: `reproduced it headlessly: ${esc(label)}`, body: `<p class="dim">Saved as <code>v${n}/${f}</code>, replayed by every later playtest.</p>`,
+        img: media(slug, n, f.replace(/\.json$/, '.gif')), alt: 'the bug, caught on camera' });
     }
   }
   for (const r of g.remixes) steps.push({ icon: '🔁', who: names(r.credits), what: `remixed it as <a href="../${r.slug}/">${esc(r.title)}</a>` });
 
-  const li = s => `<li><span class="ic">${s.icon}</span><div class="st"><p class="hd">${s.who} ${s.what}${s.time && when(s.time) ? ` <time>${when(s.time)}</time>` : ''}</p>${s.body || ''}${s.img ? `<a href="v${g.latest}/"><img src="${s.img}" alt="screenshot" loading="lazy"></a>` : ''}</div></li>`;
+  const li = s => `<li><span class="ic">${s.icon}</span><div class="st"><p class="hd">${s.who} ${s.what}${s.time && when(s.time) ? ` <time>${when(s.time)}</time>` : ''}</p>${s.body || ''}${s.img ? `<a href="v${g.latest}/"><img${s.wide ? ' class="wide"' : ''} src="${s.img}" alt="${esc(s.alt || 'screenshot')}" loading="lazy"></a>` : ''}</div></li>`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -144,6 +150,7 @@ export function makingOfPage(g, bySlug) {
   .quote { margin: 6px 0 0; color: var(--dim); font-style: italic; font-size: 14px; } .dim { margin: 6px 0 0; color: var(--dim); font-size: 13px; }
   code { font-size: 12.5px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 5px; }
   .st img { display: block; margin-top: 10px; width: 100%; max-width: 420px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+  .st img.wide { max-width: 100%; }
   .legend { margin-top: 8px; color: var(--dim); font-size: 13px; }
   footer { text-align: center; color: var(--dim); font-size: 13px; padding: 12px 0 40px; }
 </style>

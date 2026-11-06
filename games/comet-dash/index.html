@@ -31,6 +31,7 @@
   .quote { margin: 6px 0 0; color: var(--dim); font-style: italic; font-size: 14px; } .dim { margin: 6px 0 0; color: var(--dim); font-size: 13px; }
   code { font-size: 12.5px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 5px; }
   .st img { display: block; margin-top: 10px; width: 100%; max-width: 420px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+  .st img.wide { max-width: 100%; }
   .legend { margin-top: 8px; color: var(--dim); font-size: 13px; }
   footer { text-align: center; color: var(--dim); font-size: 13px; padding: 12px 0 40px; }
 </style>
@@ -46,7 +47,7 @@
 <li><span class="ic">🔁</span><div class="st"><p class="hd"><b>Jatiiin.vats</b> remixed <a href="../cat-vs-cucumbers/">Cat vs Cucumbers</a> (by <b>Jatiiin.vats</b>) into a new game <time>5 Nov, 05:30 IST</time></p></div></li>
 <li><span class="ic">🎨</span><div class="st"><p class="hd"><span class="agent">designer</span> wrote the plan (GAME_SPEC.md)</p><p class="quote">A space cat dodges falling comets and collects stars, speeding up the longer it survives.</p></div></li>
 <li><span class="ic">🛠</span><div class="st"><p class="hd"><span class="agent">builder</span> built v1</p><ul><li>Remixed from Cat vs Cucumbers: same cat-dodging loop, now a space-cat astronaut floating in a starfield, dodging comets and collecting stars.</li><li>Comets and stars both ramp fall speed with <code>speed = 1 + runTime * 0.07</code>, read live via <code>state().speed</code>; comet/star spawn intervals shrink as speed rises.</li><li>Stars give +10 score and vanish with a sparkle burst + chime on pickup; scoring also ticks +1 per second survived, same cadence as the original.</li></ul></div></li>
-<li><span class="ic">🧪</span><div class="st"><p class="hd"><span class="agent">playtester</span> 19/19 checks PASS, 61 fps <time>6 Nov, 00:28 IST</time></p><ul class="checks"><li>✅ A1 score increases while playing</li><li>✅ A2 speed increases as time increases</li><li>✅ A3 comet overlapping the cat ends the run</li><li>✅ A4 collecting a star gives +10 score</li><li>✅ A5 start() from title begins playing at score 0</li><li>✅ A6 reset() returns to the title screen</li></ul><a href="v1/"><img src="v1/screenshot.png" alt="screenshot" loading="lazy"></a></div></li>
+<li><span class="ic">🧪</span><div class="st"><p class="hd"><span class="agent">playtester</span> 19/19 checks PASS, 61 fps <time>6 Nov, 00:28 IST</time></p><ul class="checks"><li>✅ A1 score increases while playing</li><li>✅ A2 speed increases as time increases</li><li>✅ A3 comet overlapping the cat ends the run</li><li>✅ A4 collecting a star gives +10 score</li><li>✅ A5 start() from title begins playing at score 0</li><li>✅ A6 reset() returns to the title screen</li></ul><a href="v1/"><img src="v1/screenshot.png" alt="the playtester playing it" loading="lazy"></a></div></li>
 <li><span class="ic">🚀</span><div class="st"><p class="hd"><span class="agent">builder</span> published <a href="v1/">v1</a> to the arcade <time>6 Nov, 00:36 IST</time></p></div></li>
   </ol>
 </div>
