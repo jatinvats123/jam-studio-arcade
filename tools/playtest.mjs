@@ -114,6 +114,12 @@ async function freshPage() {
   await p.goto(gameUrl, { waitUntil: 'load' });
   const ok = await p.evaluate(() => !!(window.__jam && window.__jam.state));
   if (!ok) throw new Error('window.__jam is missing');
+  // The page's load time still depends on machine speed (Playwright replays the paused clock at
+  // the real time it was paused), and fake frames fire on a 16 ms grid, so the game loop's phase
+  // differed by a step between runs. Jump to the next grid point >= 1 s ahead: one frame with a
+  // long gap, so a fixed-step loop clamps it and drops its leftover time; every run then lines up.
+  const t = await p.evaluate(() => performance.now());
+  await guard(p.clock.fastForward(1000 + ((16 - (t % 16)) % 16)), 'the first frame');
   await p.evaluate(s => { __jam.seed(s); __jam.reset(); }, SEED);
   return p;
 }
@@ -121,12 +127,13 @@ const state = p => p.evaluate(() => __jam.state());
 // On the paused clock a busy loop that waits on performance.now()/Date.now() never ends, which
 // freezes the page; cap each advance in real time so that becomes a FAIL instead of a hang.
 const FREEZE_MS = 20_000;
-const run = (p, ms) => {
+function guard(clockMove, what) {
   let timer;
   const frozen = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(
-    `game froze: ${ms} ms of game time didn't finish in ${FREEZE_MS / 1000} s (a loop that waits on the clock?)`)), FREEZE_MS); });
-  return Promise.race([p.clock.runFor(ms), frozen]).finally(() => clearTimeout(timer));
-};
+    `game froze: ${what} didn't finish in ${FREEZE_MS / 1000} s (a loop that waits on the clock?)`)), FREEZE_MS); });
+  return Promise.race([clockMove, frozen]).finally(() => clearTimeout(timer));
+}
+const run = (p, ms) => guard(p.clock.runFor(ms), `${ms} ms of game time`);
 async function hold(p, key, ms) { await p.keyboard.down(key); await run(p, ms); await p.keyboard.up(key); }
 /** 48x27 grayscale thumbnail of the canvas, to tell whether anything on screen changed. */
 const pixels = p => p.evaluate(() => {

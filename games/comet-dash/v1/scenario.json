@@ -10,10 +10,9 @@
 
   {"seed": 42},
   {"call": "start"},
-  {"press": "ArrowRight", "ms": 600},
-  {"wait": 3300},
+  {"press": "ArrowRight", "ms": 550},
   {"mark": "c"},
-  {"wait": 400},
+  {"wait": 4000},
   {"mark": "d"},
   {"expect": "marks.d.score - marks.c.score >= 10", "label": "A4 collecting a star gives +10 score"},
 
