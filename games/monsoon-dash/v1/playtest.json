@@ -1,0 +1,112 @@
+{
+  "slug": "monsoon-dash",
+  "version": 1,
+  "pass": true,
+  "when": "2026-11-06T15:04:13.546Z",
+  "runner": "GPT · Codex",
+  "seed": 42,
+  "fps": 61,
+  "controls": [
+    "ArrowLeft",
+    "ArrowRight"
+  ],
+  "seconds": 51.5,
+  "screenshot": "screenshot.png",
+  "checks": [
+    {
+      "name": "static check",
+      "pass": true,
+      "detail": "CHECK PASS monsoon-dash v1"
+    },
+    {
+      "name": "__jam hook",
+      "pass": true,
+      "detail": "functions: state,start,reset,seed; controls: [\"ArrowLeft\",\"ArrowRight\"]"
+    },
+    {
+      "name": "loads without errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "starts on title screen",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "frame rate >= 30 fps",
+      "pass": true,
+      "detail": "61 fps in headless Chromium"
+    },
+    {
+      "name": "start() -> playing",
+      "pass": true,
+      "detail": "scene=playing"
+    },
+    {
+      "name": "canvas changes within 1 s",
+      "pass": true,
+      "detail": "compared 48x27 thumbnails"
+    },
+    {
+      "name": "key ArrowLeft has an effect",
+      "pass": true,
+      "detail": "changes playerX"
+    },
+    {
+      "name": "key ArrowRight has an effect",
+      "pass": true,
+      "detail": "changes playerX"
+    },
+    {
+      "name": "A1 score increases while playing",
+      "pass": true,
+      "detail": "state.scene === 'playing' && state.score > marks.aliveStart.score -> state {\"scene\":\"playing\",\"score\":1,\"best\":0,\"time\":1.08,\"frame\":73,\"playerX\":480,\"hazards\":1,\"treats\":0,\"speed\":1.07,\"dodged\":0}"
+    },
+    {
+      "name": "A4 obstacle speed ramps over time",
+      "pass": true,
+      "detail": "state.speed > marks.speedStart.speed -> state {\"scene\":\"playing\",\"score\":2,\"best\":0,\"time\":2.08,\"frame\":133,\"playerX\":480,\"hazards\":3,\"treats\":1,\"speed\":1.14,\"dodged\":0}"
+    },
+    {
+      "name": "A5 title screen is available",
+      "pass": true,
+      "detail": "state.scene === 'title' -> state {\"scene\":\"title\",\"score\":0,\"best\":0,\"time\":0,\"frame\":133,\"playerX\":480,\"hazards\":0,\"treats\":0,\"speed\":1,\"dodged\":0}"
+    },
+    {
+      "name": "A5 Space starts or restarts the run",
+      "pass": true,
+      "detail": "state.scene === 'playing' -> state {\"scene\":\"playing\",\"score\":0,\"best\":0,\"time\":0.03,\"frame\":136,\"playerX\":480,\"hazards\":0,\"treats\":0,\"speed\":1,\"dodged\":0}"
+    },
+    {
+      "name": "A2 grabbing a samosa adds 10 points",
+      "pass": true,
+      "detail": "state.score >= marks.samosaStart.score + 10 -> state {\"scene\":\"playing\",\"score\":16,\"best\":0,\"time\":6.9,\"frame\":550,\"playerX\":730,\"hazards\":3,\"treats\":1,\"speed\":1.45,\"dodged\":9}"
+    },
+    {
+      "name": "A3 pothole or puddle collision ends the run",
+      "pass": true,
+      "detail": "state.scene === 'over' -> state {\"scene\":\"over\",\"score\":3,\"best\":3,\"time\":3.93,\"frame\":820,\"playerX\":480,\"hazards\":5,\"treats\":2,\"speed\":1.26,\"dodged\":2}"
+    },
+    {
+      "name": "20 s random input, no exceptions",
+      "pass": true,
+      "detail": "1 restarts"
+    },
+    {
+      "name": "game over reachable (no input)",
+      "pass": true,
+      "detail": "over after 7 s"
+    },
+    {
+      "name": "restart from game over",
+      "pass": true,
+      "detail": "Space after game over -> scene=playing"
+    },
+    {
+      "name": "reset() -> title",
+      "pass": true,
+      "detail": "scene=title"
+    }
+  ]
+}
