@@ -42,7 +42,16 @@ export function guard(clockMove, what) {
     `game froze: ${what} didn't finish in ${FREEZE_MS / 1000} s (a loop that waits on the clock?)`)), FREEZE_MS); });
   return Promise.race([clockMove, frozen]).finally(() => clearTimeout(timer));
 }
-export const run = (p, ms) => guard(p.clock.runFor(ms), `${ms} ms of game time`);
+// Long waits move the clock in 1 s slices, each under the guard: a healthy 60 s wait can take more
+// than 20 s of real time on a slow machine (CI), while a frozen game stalls inside a single slice.
+// Same timers fire at the same fake times as one big runFor, so results don't change.
+export const CHUNK_MS = 1000;
+export async function run(p, ms) {
+  for (let done = 0; done < ms; done += CHUNK_MS) {
+    const step = Math.min(CHUNK_MS, ms - done);
+    await guard(p.clock.runFor(step), `${step} ms of game time (at ${done} of ${ms} ms)`);
+  }
+}
 export async function hold(p, key, ms, advance = run) { await p.keyboard.down(key); await advance(p, ms); await p.keyboard.up(key); }
 export const state = p => p.evaluate(() => __jam.state());
 
