@@ -1,0 +1,6 @@
+[
+  {"seed":42},
+  {"call":"start"},
+  {"press":"ArrowLeft","ms":1200},
+  {"expect":"state.playerX >= 100","label":"BUG 1: scooter stays on the road, not the sidewalk"}
+]
