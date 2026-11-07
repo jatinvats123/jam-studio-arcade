@@ -79,7 +79,9 @@ if (ok) {
   if (hasShot) console.log(`Screenshot: ${url}screenshot.png`);
   console.log(`Arcade: ${base}/`);
 } else {
-  console.log(`Pages did not answer 200 within 90 s (last status ${last}). It may still be deploying.`);
-  printLocal();
-  console.log(`Public link (should work in a minute): ${url}`);
+  console.log(`Pages is still deploying (no 200 within 90 s, last status ${last}). These public links work in a minute:`);
+  console.log(`LIVE: ${url}`);
+  console.log(`Short link: ${base}/play/${slug}/`);
+  if (hasShot) console.log(`Screenshot: ${url}screenshot.png`);
+  console.log(`Arcade: ${base}/`);
 }
