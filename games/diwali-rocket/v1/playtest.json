@@ -1,0 +1,107 @@
+{
+  "slug": "diwali-rocket",
+  "version": 1,
+  "pass": true,
+  "when": "2026-11-07T09:52:27.037Z",
+  "runner": "GPT · Codex",
+  "seed": 42,
+  "fps": 61,
+  "controls": [
+    "ArrowLeft",
+    "ArrowRight"
+  ],
+  "seconds": 62.6,
+  "screenshot": "screenshot.png",
+  "checks": [
+    {
+      "name": "static check",
+      "pass": true,
+      "detail": "CHECK PASS diwali-rocket v1"
+    },
+    {
+      "name": "__jam hook",
+      "pass": true,
+      "detail": "functions: state,start,reset,seed; controls: [\"ArrowLeft\",\"ArrowRight\"]"
+    },
+    {
+      "name": "loads without errors",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "starts on title screen",
+      "pass": true,
+      "detail": "scene=title"
+    },
+    {
+      "name": "frame rate >= 30 fps",
+      "pass": true,
+      "detail": "61 fps in headless Chromium"
+    },
+    {
+      "name": "start() -> playing",
+      "pass": true,
+      "detail": "scene=playing"
+    },
+    {
+      "name": "canvas changes within 1 s",
+      "pass": true,
+      "detail": "compared 48x27 thumbnails"
+    },
+    {
+      "name": "key ArrowLeft has an effect",
+      "pass": true,
+      "detail": "changes playerX"
+    },
+    {
+      "name": "key ArrowRight has an effect",
+      "pass": true,
+      "detail": "changes playerX"
+    },
+    {
+      "name": "A1 score increases while playing",
+      "pass": true,
+      "detail": "state.scene === 'playing' && state.score > marks.scoreStart.score -> state {\"scene\":\"playing\",\"score\":1,\"best\":0,\"time\":1.98,\"frame\":127,\"playerX\":480,\"kites\":2,\"diyas\":1,\"speed\":1.13,\"dodged\":0,\"diyasGrabbed\":0}"
+    },
+    {
+      "name": "A2 diya grants 10 points",
+      "pass": true,
+      "detail": "state.diyasGrabbed > 0 && state.score >= 10 -> state {\"scene\":\"playing\",\"score\":16,\"best\":0,\"time\":6.25,\"frame\":502,\"playerX\":827,\"kites\":3,\"diyas\":1,\"speed\":1.41,\"dodged\":5,\"diyasGrabbed\":1}"
+    },
+    {
+      "name": "A3 kite collision ends run",
+      "pass": true,
+      "detail": "state.scene === 'over' -> state {\"scene\":\"over\",\"score\":7,\"best\":7,\"time\":7.73,\"frame\":1462,\"playerX\":480,\"kites\":4,\"diyas\":3,\"speed\":1.5,\"dodged\":7,\"diyasGrabbed\":0}"
+    },
+    {
+      "name": "A4 speed ramps over time",
+      "pass": true,
+      "detail": "state.speed > marks.speedStart.speed -> state {\"scene\":\"playing\",\"score\":3,\"best\":7,\"time\":3,\"frame\":1642,\"playerX\":480,\"kites\":3,\"diyas\":2,\"speed\":1.19,\"dodged\":0,\"diyasGrabbed\":0}"
+    },
+    {
+      "name": "A5 title, game-over, and Space restart",
+      "pass": true,
+      "detail": "marks.title.scene === 'title' && state.scene === 'playing' -> state {\"scene\":\"playing\",\"score\":0,\"best\":7,\"time\":0,\"frame\":2603,\"playerX\":480,\"kites\":0,\"diyas\":0,\"speed\":1,\"dodged\":0,\"diyasGrabbed\":0}"
+    },
+    {
+      "name": "20 s random input, no exceptions",
+      "pass": true,
+      "detail": "0 restarts"
+    },
+    {
+      "name": "game over reachable (no input)",
+      "pass": true,
+      "detail": "over after 8 s"
+    },
+    {
+      "name": "restart from game over",
+      "pass": true,
+      "detail": "Space after game over -> scene=playing"
+    },
+    {
+      "name": "reset() -> title",
+      "pass": true,
+      "detail": "scene=title"
+    }
+  ]
+}

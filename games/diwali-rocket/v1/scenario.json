@@ -1,0 +1,42 @@
+[
+  {"seed":42},
+  {"call":"start"},
+  {"mark":"scoreStart"},
+  {"wait":2000},
+  {"expect":"state.scene === 'playing' && state.score > marks.scoreStart.score","label":"A1 score increases while playing"},
+
+  {"seed":42},
+  {"call":"reset"},
+  {"call":"start"},
+  {"press":"ArrowRight","ms":650},
+  {"wait":400},
+  {"press":"ArrowLeft","ms":1000},
+  {"wait":400},
+  {"press":"ArrowRight","ms":1000},
+  {"wait":400},
+  {"press":"ArrowLeft","ms":1000},
+  {"wait":400},
+  {"press":"ArrowRight","ms":1000},
+  {"expect":"state.diyasGrabbed > 0 && state.score >= 10","label":"A2 diya grants 10 points"},
+
+  {"seed":42},
+  {"call":"reset"},
+  {"call":"start"},
+  {"wait":16000},
+  {"expect":"state.scene === 'over'","label":"A3 kite collision ends run"},
+
+  {"seed":42},
+  {"call":"reset"},
+  {"call":"start"},
+  {"mark":"speedStart"},
+  {"wait":3000},
+  {"expect":"state.speed > marks.speedStart.speed","label":"A4 speed ramps over time"},
+
+  {"seed":42},
+  {"call":"reset"},
+  {"mark":"title"},
+  {"call":"start"},
+  {"wait":16000},
+  {"press":"Space","ms":20},
+  {"expect":"marks.title.scene === 'title' && state.scene === 'playing'","label":"A5 title, game-over, and Space restart"}
+]
